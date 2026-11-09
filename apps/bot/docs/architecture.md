@@ -8,7 +8,7 @@ Bot ligero para un solo servidor de amigos. Solo reproduce links de YouTube: sin
 
 | Pieza | Qué |
 |-------|-----|
-| Runtime | Node LTS, TypeScript, `tsx` en desarrollo |
+| Runtime | Node LTS, TypeScript 6.0 (no 7: typescript-eslint todavía no la soporta), ESM (`"type": "module"`), `tsx` en desarrollo y `tsup` para la build. El `.env` se carga con `--env-file` de Node/tsx, sin dotenv |
 | Discord | `discord.js` v14, solo slash commands (sin prefijos ni lectura de mensajes) |
 | Voz | `@discordjs/voice` con sus dependencias de opus y cifrado |
 | Audio | `yt-dlp` para leer los datos del video de YouTube y obtener el stream, `ffmpeg` para transcodificar. Los dos son binarios del sistema, en el `PATH` |
@@ -41,10 +41,11 @@ src/
 ├── commands/
 │   ├── <comando>-command.ts           un archivo por slash command: play, skip, stop, queue, pause, resume
 │   ├── command.ts                     tipo Command: { data, execute(interaction, appContext) }
+│   ├── utils/reply.ts                 reply(interaction, result, render)
 │   └── index.ts                       arma el array de commands (no reexporta)
 ├── events/
-│   ├── interaction-create.ts          busca el comando por nombre y lo ejecuta; si lanza, loguea y responde un error genérico
-│   └── ready.ts                       loguea que el bot está arriba
+│   ├── interaction-create.ts          onInteractionCreate(appContext, commands): busca el comando por nombre y lo ejecuta; si lanza, loguea y responde un error genérico
+│   └── ready.ts                       onReady(appContext): loguea que el bot está arriba
 ├── modules/music/
 │   ├── use-cases/<caso-de-uso>.ts     un archivo por caso de uso; si tiene test, va en use-cases/<caso-de-uso>/ con su test e index.ts
 │   └── music-errors.ts                errores de negocio del módulo
@@ -60,17 +61,21 @@ src/
 └── index.ts                           arranque: config, app context, login y shutdown
 ```
 
+Los events son factories: reciben lo que necesitan (`appContext` y, en `interaction-create`, la lista de `commands`) y devuelven el listener que `client.ts` engancha. Así el test les pasa comandos falsos.
+
 Un archivo por recurso en cada capa (`play-command.ts`, `music-errors.ts`, `guild-queue.ts`). Si un archivo crece demasiado, se parte por acción dentro de una carpeta del recurso.
 
 ## Comandos
 
-- Un `Command` tiene `data` (el `SlashCommandBuilder`) y `execute(interaction, appContext)`.
+- Un `Command` tiene `data` y `execute(interaction, appContext)`. `data` se tipa de forma estructural (`name` + `toJSON()`) para aceptar un `SlashCommandBuilder` con o sin opciones; en la práctica siempre es un `SlashCommandBuilder`.
 - Leen las opciones con `interaction.options` tal como llegan; no las validan ni las transforman: eso lo hace el schema del use-case.
 - Sacan de la `interaction` lo que el use-case necesita como datos planos (`guildId`, `voiceChannelId` del miembro, `url`) y se lo pasan. El use-case no recibe la `interaction` ni objetos de discord.js.
 - Llaman a un solo use-case y responden. Sin `if` de negocio.
-- Un comando que solo lee (p. ej. `/queue`) no lleva use-case: lee directo de `appContext.queues` y responde. Si no hay nada, responde la lista vacía, sin error.
+- Un comando que solo lee (p. ej. `/queue`, `/ping`) no lleva use-case: lee directo de `appContext.queues` (o de la `interaction`) y responde. Si no hay nada, responde la lista vacía, sin error.
 - Si la respuesta puede tardar más de 3 segundos (leer los datos de un video), el comando hace `deferReply()` primero y después `editReply()`.
-- Responden con `reply(result, render)` (`src/commands/utils/reply.ts`): si `result` es un `BusinessError`, responde su `message` en efímero; si no, responde lo que arma `render(result)`:
+- Responden con `reply(interaction, result, render)` (`src/commands/utils/reply.ts`): si `result` es un `BusinessError`, responde su `message` en efímero; si no, responde lo que arma `render(result)`.
+- Efímero se marca con `flags: MessageFlags.Ephemeral` (`ephemeral: true` está deprecado en discord.js 14).
+- Si la interaction está diferida, la respuesta normal va con `editReply`. Un error efímero no puede salir con `editReply`, porque hereda la visibilidad del `deferReply`: se borra la respuesta diferida (`deleteReply()`) y se manda con `followUp` efímero. `reply` y el error genérico de `interaction-create` lo hacen así:
 
   ```ts
   async function execute(interaction: ChatInputCommandInteraction, appContext: AppContext) {
@@ -165,12 +170,14 @@ src/services/
 | `services` | `audio`, `voice`, `logger`, ya instanciados. |
 
 - Los use-cases no van en el app context: `new TrackSkipper(appContext.queues, appContext.services.voice, appContext.services.audio)`.
-- En el shutdown (`SIGINT`/`SIGTERM`) de `src/index.ts`, el bot sale de todos los canales de voz y hace `client.destroy()`.
+- En el shutdown (`SIGINT`/`SIGTERM`) de `src/index.ts`, el bot sale de todos los canales de voz y hace `client.destroy()`. Hasta que exista `voice` (feature `play`), solo hace `client.destroy()`.
+- `deploy-commands.ts` también arma el app context, solo para usar el logger.
 
 ## Config
 
-- `src/config/config.ts` valida `process.env` con zod y lo mapea a un objeto en camelCase: `config.discord.token`, `config.discord.clientId`, `config.discord.guildId`. Nadie más lee `process.env`.
-- Solo valida forma y presencia. Ninguna variable tiene default.
+- `src/config/config.ts` expone `loadConfig()`, que valida `process.env` con zod y lo mapea a un objeto en camelCase: `config.nodeEnv`, `config.discord.token`, `config.discord.clientId`, `config.discord.guildId`. Nadie más lee `process.env`.
+- Solo valida forma y presencia (los IDs de Discord, solo dígitos). Ninguna variable tiene default.
+- Si falla, lanza `InvalidConfigError` (definido sin exportar dentro de `config.ts`) con el detalle de `z.prettifyError`, que nombra la variable.
 - Las variables están en `commands.md` > Variables de entorno.
 
 ## Errores

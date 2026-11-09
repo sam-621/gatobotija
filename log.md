@@ -14,3 +14,5 @@
 - [bot-setup] (bot) El bot se conecta, registra comandos por servidor y maneja errores de comandos.
 - [bot-setup] (bot) `/ping` responde con la latencia.
 - [bot-setup] Se cierra la feature.
+- [bot-setup] (bot) Probado en el servidor: el bot se conecta y `/ping` responde.
+- (bot) Los errores después de un `deferReply` salen efímeros; docs de arquitectura, estilo y testing al día con el esqueleto del bot.

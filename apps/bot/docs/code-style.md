@@ -12,7 +12,7 @@ Aplica a todo código nuevo. Si un archivo existente lo contradice, manda este d
 - **Sin non-null assertion (`!`)**. Si algo puede ser `null` (`interaction.guildId`, el canal de voz del miembro), se maneja o se usa un helper que lance.
 - **Duraciones en segundos** (enteros) en el estado y los tipos propios. Se formatean (`3:45`) solo al responder.
 - **Sin parámetros con default solo para que los tests escriban menos.** Si producción siempre pasa el argumento, es requerido.
-- **`export` solo si se importa en otro archivo.** No se exporta "por si después se usa".
+- **`export` solo si se importa en otro archivo.** No se exporta "por si después se usa". Excepción: las piezas base que pide el spec de una feature para las siguientes (como `UseCase`).
 - **En una clase, todo lo que usa va dentro de ella.** Las constantes simples como `private static readonly` (`IDLE_TIMEOUT_MS`), lo que se instancia en el constructor, y las funciones auxiliares como métodos privados. Nada suelto en el módulo, salvo los tipos.
 
 ## Formato e imports

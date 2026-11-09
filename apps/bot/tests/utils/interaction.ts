@@ -46,7 +46,10 @@ export function createInteraction({
     deferReply: vi.fn(async () => {
       interaction.deferred = true;
     }),
-    editReply: vi.fn(async () => {}),
+    editReply: vi.fn(async () => {
+      interaction.replied = true;
+    }),
+    deleteReply: vi.fn(async () => {}),
     followUp: vi.fn(async () => {})
   };
 

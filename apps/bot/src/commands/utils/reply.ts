@@ -21,6 +21,13 @@ async function respond(
   content: string,
   ephemeral: boolean
 ) {
+  if (interaction.deferred && ephemeral) {
+    await interaction.deleteReply();
+    await interaction.followUp({ content, flags: MessageFlags.Ephemeral });
+
+    return;
+  }
+
   if (interaction.deferred) {
     await interaction.editReply({ content });
 

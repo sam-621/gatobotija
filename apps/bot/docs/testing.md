@@ -55,12 +55,12 @@ No se testean:
 
 Son el equivalente a un e2e: prueban el comando de punta a punta sin Discord.
 
-- Setup: `createTestAppContext()` (`tests/utils/app-context.ts`) en `beforeEach`, con `QueueRegistry` real, `DummyVoicePlayer` y un `AudioSource` falso; `vi.restoreAllMocks()` en `afterEach`.
-- La `interaction` sale de `createInteraction({ command, options, guildId, voiceChannelId })` (`tests/utils/interaction.ts`), que devuelve un objeto con `reply`, `deferReply` y `editReply` como `vi.fn()` y las opciones que pide el test. Nunca se arma una `interaction` a mano en el test.
+- Setup: `createTestAppContext()` (`tests/utils/app-context.ts`) en `beforeEach`, con `QueueRegistry` real, `DummyVoicePlayer`, un `AudioSource` falso y un logger con `vi.fn()`; `vi.restoreAllMocks()` en `afterEach`.
+- La `interaction` sale de `createInteraction({ command, options, guildId, voiceChannelId, wsPing })` (`tests/utils/interaction.ts`), que devuelve un objeto con `reply`, `deferReply`, `editReply`, `deleteReply` y `followUp` como `vi.fn()` (actualizan `deferred`/`replied` como discord.js) y las opciones que pide el test. Nunca se arma una `interaction` a mano en el test.
 - El estado previo (una cola con tracks, un track sonando) se arma con el `QueueRegistry` del app context antes de ejecutar, usando los tracks de los fixtures.
 - Qué devuelve `AudioSource` se controla con `vi.spyOn(appContext.services.audio, 'resolve')` y `mockResolvedValue(...)`, o `mockRejectedValue(new <Error>(...))` para el error.
 - Se verifica:
-  1. **La respuesta:** el texto exacto con que se llamó `reply`/`editReply`, y `ephemeral: true` en los errores de negocio.
+  1. **La respuesta:** el texto exacto con que se llamó `reply`/`editReply`/`followUp`, y `flags: 64` (`MessageFlags.Ephemeral`) en los errores de negocio.
   2. **El efecto en el estado:** cómo quedó la cola (`current`, `upcoming`, pausa), o que no cambió.
   3. **Lo que recibió la voz:** las llamadas que guardó `DummyVoicePlayer` (`join`, `play`, `stop`, `leave`), porque es el efecto real del bot.
 - Un solo happy path por variante real (p. ej. `/play` con la cola vacía y con algo sonando), y un test por cada `code` de error distinto. Si varios inputs inválidos dan el mismo `code`, basta con uno.
@@ -85,3 +85,4 @@ Son el equivalente a un e2e: prueban el comando de punta a punta sin Discord.
 - Viven en `fixtures/` junto al test, en `<recurso>.fixtures.ts` (con punto: `track.fixtures.ts`), como un objeto `as const` `<X>Fixtures` con datos realistas (`TrackFixtures.SongA`).
 - Los tracks compartidos por varios tests de comandos van en `tests/fixtures/track.fixtures.ts`.
 - Si un caso necesita datos nuevos, se agregan al objeto de fixtures existente; nada de objetos ad-hoc dentro del test.
+- Excepción: los `Command` falsos del test de `interaction-create` se arman dentro del test, porque solo existen para probar el ruteo.

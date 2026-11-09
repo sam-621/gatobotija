@@ -31,6 +31,8 @@ export function onInteractionCreate(appContext: AppContext, commands: Command[])
 
 async function replyGenericError(interaction: ChatInputCommandInteraction, appContext: AppContext) {
   try {
+    if (interaction.deferred && !interaction.replied) await interaction.deleteReply();
+
     if (interaction.deferred || interaction.replied) {
       await interaction.followUp({ content: GENERIC_ERROR_MESSAGE, flags: MessageFlags.Ephemeral });
 

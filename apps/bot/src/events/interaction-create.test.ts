@@ -72,12 +72,13 @@ describe('interactionCreate - Event', () => {
     );
   });
 
-  test('follows up with a generic ephemeral error when the command throws after deferring', async () => {
+  test('deletes the deferred reply and follows up with a generic ephemeral error when the command throws after deferring', async () => {
     const interaction = createInteraction({ command: 'broken' });
     await interaction.deferReply();
 
     await onInteractionCreate(appContext, commands)(interaction);
 
+    expect(interaction.deleteReply).toHaveBeenCalled();
     expect(interaction.followUp).toHaveBeenCalledWith({
       content: 'Something went wrong.',
       flags: 64

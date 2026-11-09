@@ -44,4 +44,4 @@ Como dueño del servidor, quiero invitar al bot y que responda a un comando, par
 2. [x] bot: config con zod, logger, `AppError`/`BusinessError`/`InvalidInputError`, `UseCase` y app context.
 3. [x] bot: client, `ready`, `interaction-create`, `Command`, `reply`, `deploy-commands` e `index.ts` con shutdown.
 4. [x] bot: `/ping` con su test y utilidades de test (`createInteraction`, `createTestAppContext`).
-5. [ ] bot: prueba manual en el servidor (la corre el usuario).
+5. [x] bot: prueba manual en el servidor (la corre el usuario).
