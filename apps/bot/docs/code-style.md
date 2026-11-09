@@ -32,7 +32,7 @@ Aplica a todo código nuevo. Si un archivo existente lo contradice, manda este d
 | Comandos | archivo `<comando>-command.ts`, objeto `<Comando>Command`; el nombre del slash command en minúsculas y en inglés | `skip-command.ts`, `SkipCommand`, `/skip` |
 | Clases | `<Recurso><Capa>` | `GuildQueue`, `QueueRegistry` |
 | Use-cases | una clase por caso de uso, nombrada por lo que hace con sufijo `-er`/`-or`; archivo en kebab-case en `modules/<modulo>/use-cases/`; carpeta con el mismo nombre solo si tiene test | `modules/music/use-cases/track-skipper.ts`, `TrackSkipper` |
-| Método del use-case | se llama `execute`, que hereda de `UseCase`; la lógica va en `run` | `new TrackSkipper(queues, voice).execute(input)` |
+| Método del use-case | se llama `execute`, que hereda de `UseCase`; la lógica va en `run` | `new TrackSkipper(appContext).execute(input)` |
 | Adapters de un service | `<adapter>/<adapter>-<rol>.ts`, clase `<Adapter><Rol>` | `yt-dlp/yt-dlp-audio-source.ts`, `YtDlpAudioSource` |
 | Schemas | `<Acción><Recurso>Schema` | `EnqueueTrackSchema` |
 | Error | describe el caso + `Error` | `QueueEmptyError` |
@@ -72,28 +72,25 @@ const SkipTrackSchema = z.object({
 });
 
 export class TrackSkipper extends UseCase<typeof SkipTrackSchema> {
-  constructor(
-    private readonly queues: QueueRegistry,
-    private readonly voice: VoicePlayer,
-    private readonly audio: AudioSource
-  ) {
+  constructor(private readonly appContext: AppContext) {
     super(SkipTrackSchema);
   }
 
   async run(input: z.output<typeof SkipTrackSchema>): Promise<Track | null | QueueEmptyError> {
-    const queue = this.queues.get(input.guildId);
+    const { queues, services } = this.appContext;
+    const queue = queues.get(input.guildId);
 
-    if (!queue.current) return new QueueEmptyError(input.guildId);
+    if (!queue.current) return new QueueEmptyError();
 
     const next = queue.next();
 
     if (!next) {
-      this.voice.stop(input.guildId);
+      services.voice.stop(input.guildId);
 
       return null;
     }
 
-    this.voice.play(input.guildId, await this.audio.stream(next));
+    services.voice.play(input.guildId, await services.audio.stream(next));
 
     return next;
   }
@@ -104,11 +101,7 @@ export class TrackSkipper extends UseCase<typeof SkipTrackSchema> {
 
 ```ts
 async function execute(interaction: ChatInputCommandInteraction, appContext: AppContext) {
-  const trackSkipper = new TrackSkipper(
-    appContext.queues,
-    appContext.services.voice,
-    appContext.services.audio
-  );
+  const trackSkipper = new TrackSkipper(appContext);
 
   const result = await trackSkipper.execute({ guildId: interaction.guildId });
 
@@ -127,8 +120,8 @@ De negocio (lo devuelve un use-case y llega al usuario como respuesta efímera),
 
 ```ts
 export class QueueEmptyError extends BusinessError<MusicErrorCode> {
-  constructor(guildId: string) {
-    super('QUEUE_EMPTY', `Nothing is playing in guild ${guildId}`);
+  constructor() {
+    super('QUEUE_EMPTY', 'Nothing is playing.');
   }
 }
 ```

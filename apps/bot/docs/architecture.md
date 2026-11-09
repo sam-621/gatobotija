@@ -10,7 +10,7 @@ Bot ligero para un solo servidor de amigos. Solo reproduce links de YouTube: sin
 |-------|-----|
 | Runtime | Node LTS, TypeScript 6.0 (no 7: typescript-eslint todavía no la soporta), ESM (`"type": "module"`), `tsx` en desarrollo y `tsup` para la build. El `.env` se carga con `--env-file` de Node/tsx, sin dotenv |
 | Discord | `discord.js` v14, solo slash commands (sin prefijos ni lectura de mensajes) |
-| Voz | `@discordjs/voice` con sus dependencias de opus y cifrado |
+| Voz | `@discordjs/voice`. Sin librería de opus ni de cifrado: el audio llega ya en Ogg/Opus (`StreamType.OggOpus`) y el cifrado sale de `node:crypto` |
 | Audio | `yt-dlp` para leer los datos del video de YouTube y obtener el stream, `ffmpeg` para transcodificar. Los dos son binarios del sistema, en el `PATH` |
 | Validación | `zod` (config y opciones de los comandos) |
 | Logger | `winston` |
@@ -56,7 +56,7 @@ src/
 ├── config/                            config.ts: valida las variables de entorno (ver "Config"); index.ts lo reexporta (@/config)
 ├── context/                           app-context.ts; index.ts lo reexporta (@/context)
 ├── shared/
-├── client.ts                          createClient(appContext): arma el Client de discord.js y engancha los events
+├── client.ts                          createClient(): arma el Client de discord.js; registerEvents(client, appContext): engancha los events
 ├── deploy-commands.ts                 registra los slash commands en el servidor (DISCORD_GUILD_ID) con la REST API
 └── index.ts                           arranque: config, app context, login y shutdown
 ```
@@ -81,11 +81,7 @@ Un archivo por recurso en cada capa (`play-command.ts`, `music-errors.ts`, `guil
   async function execute(interaction: ChatInputCommandInteraction, appContext: AppContext) {
     await interaction.deferReply();
 
-    const trackEnqueuer = new TrackEnqueuer(
-      appContext.queues,
-      appContext.services.audio,
-      appContext.services.voice
-    );
+    const trackEnqueuer = new TrackEnqueuer(appContext);
 
     const result = await trackEnqueuer.execute({
       guildId: interaction.guildId,
@@ -114,9 +110,10 @@ Un archivo por recurso en cada capa (`play-command.ts`, `music-errors.ts`, `guil
 - Una clase por caso de uso, con un solo método `execute` (`TrackEnqueuer.execute`). Naming en `code-style.md` > Naming.
 - Extienden `UseCase` (`src/shared/use-case.ts`) con su schema zod (`super(EnqueueTrackSchema)`) y escriben su lógica en `run(input)`. `execute` recibe el input crudo, lo valida con el schema y, si falla, devuelve `InvalidInputError` sin llamar a `run`; si pasa, llama a `run` con el input ya parseado.
 - Cada use-case define su schema en su propio archivo, arriba de la clase y sin exportar. No se comparten entre use-cases.
-- Reciben por constructor el `QueueRegistry` y después los services que usan.
+- Reciben por constructor el `appContext` entero y de ahí sacan el `QueueRegistry` y los services que usan.
 - Las reglas viven aquí: hay que estar en un canal de voz, no se puede saltar con la cola vacía, al terminar un track arranca el siguiente, al vaciarse la cola el bot sale del canal después de un rato.
-- Se instancian donde se usan, con lo que necesitan del app context. No hay un registro de use-cases.
+- Se instancian donde se usan, pasándoles el `appContext`. No hay un registro de use-cases.
+- Un use-case puede crear otros para los callbacks de voz que registra: `TrackEnqueuer` engancha `onIdle` → `QueueAdvancer` y `onDisconnect` → `QueueReleaser`. El callback atrapa y loguea lo que se lance.
 
 ## Links de YouTube
 
@@ -129,8 +126,9 @@ Casos iniciales: `TrackEnqueuer` (`/play`), `TrackSkipper` (`/skip`), `PlaybackS
 
 ## Estado en memoria
 
-- `GuildQueue` es lógica pura, sin discord.js ni services: guarda los tracks, el actual y si está en pausa; expone `add`, `next`, `clear`, `current`, `upcoming`. No reproduce nada.
-- `QueueRegistry` mapea `guildId` → `GuildQueue` y crea la cola la primera vez que se pide (`get(guildId)`). Es la única fuente del estado y vive en `appContext.queues`.
+- `GuildQueue` es lógica pura, sin discord.js ni services: guarda los tracks, el actual, el canal de voz y si está en pausa; expone `add`, `next`, `clear`, `current`, `upcoming`. No reproduce nada.
+- `GuildQueue` también guarda el timer de inactividad (`startIdleTimeout(cb, ms)` / `cancelIdleTimeout()`); `add` y `clear` lo cancelan. Qué hace el callback lo decide el use-case.
+- `QueueRegistry` mapea `guildId` → `GuildQueue` y crea la cola la primera vez que se pide (`get(guildId)`). `find(guildId)` la devuelve o `null` sin crearla (para comprobar que la cola sigue siendo la misma tras un `await`) y `guildIds()` lista los servidores con cola. Es la única fuente del estado y vive en `appContext.queues`.
 - Nada persiste: al reiniciar el bot, las colas empiezan vacías. Es una decisión, no un pendiente.
 
 ## Services
@@ -138,7 +136,7 @@ Casos iniciales: `TrackEnqueuer` (`/play`), `TrackSkipper` (`/skip`), `PlaybackS
 Un service es una capa sobre algo externo: la voz de Discord, los datos y el stream de audio, los logs. Permite reemplazarlo por uno falso en los tests sin tocar los use-cases.
 
 - **Sin reglas.** Hace lo que le piden y nada más; cuándo reproducir, qué sigue y cuándo salir lo decide el use-case.
-- Los usan solo los use-cases, que los reciben por constructor. Excepción: el logger, que se puede usar desde cualquier capa.
+- Los usan solo los use-cases, que los sacan del `appContext` que reciben por constructor. Excepción: el logger, que se puede usar desde cualquier capa.
 - Si el proveedor falla, el service lanza un error de `services/<servicio>/<servicio>-errors.ts` con el motivo; no lo ignora.
 - Un service con un solo proveedor real es una interface y su adapter, más un `dummy/` para tests. Sin factory mientras no haya un segundo proveedor.
 
@@ -149,9 +147,9 @@ src/services/
 │   ├── yt-dlp/yt-dlp-audio-source.ts    spawnea yt-dlp (y ffmpeg) con child_process
 │   └── audio-errors.ts
 ├── voice/
-│   ├── voice-player.ts              interface VoicePlayer: join(guildId, channelId), play(guildId, stream), pause, resume, stop, leave y onIdle(guildId, cb), todos por guildId
+│   ├── voice-player.ts              interface VoicePlayer: join, play, leave, onIdle, onDisconnect, onChannelChange (y pause, resume, stop desde playback-controls), todos por guildId
 │   ├── discord/discord-voice-player.ts  adapter sobre @discordjs/voice
-│   ├── dummy/dummy-voice-player.ts      tests: no hace nada, guarda lo que recibe
+│   ├── dummy/dummy-voice-player.ts      tests: no hace nada, guarda lo que recibe y expone emitIdle/emitDisconnect/emitChannelChange para disparar los callbacks
 │   └── voice-errors.ts
 └── logger/logger.ts                 createLogger(): info, warn, error(message, error?, meta?)
 ```
@@ -159,19 +157,20 @@ src/services/
 - **Una interface** con los métodos que usan los use-cases, sin tipos del proveedor (nada de `AudioResource` ni `VoiceConnection` afuera del adapter).
 - `Track` es un tipo plano propio (`{ title, url, durationSeconds, requestedBy }`) en `src/shared/types/track.ts`.
 - `VoicePlayer` lleva un player por servidor dentro del adapter; los use-cases solo pasan el `guildId`.
+- Los callbacks de `VoicePlayer` avisan, no deciden: `onIdle` cuando el `AudioPlayer` pasa a `Idle`; `onDisconnect` cuando la conexión cae y no vuelve en 5 s o la destruyen desde afuera (un `leave` propio no lo dispara); `onChannelChange` cuando mueven al bot a otro canal. El service nunca toca el estado: el use-case actualiza o libera la cola.
 
 ## App context
 
-`src/context/app-context.ts`. Se arma una sola vez con `createAppContext(config)` en `src/index.ts` y se pasa a `createClient(appContext)`, que se lo da a cada comando.
+`src/context/app-context.ts`. Se arma una sola vez en `src/index.ts`: `createClient()`, después `createAppContext(config, client)` (el voice necesita el client) y `registerEvents(client, appContext)`, que se lo da a cada comando.
 
 | Clave | Qué |
 |-------|-----|
 | `queues` | El `QueueRegistry`. |
 | `services` | `audio`, `voice`, `logger`, ya instanciados. |
 
-- Los use-cases no van en el app context: `new TrackSkipper(appContext.queues, appContext.services.voice, appContext.services.audio)`.
-- En el shutdown (`SIGINT`/`SIGTERM`) de `src/index.ts`, el bot sale de todos los canales de voz y hace `client.destroy()`. Hasta que exista `voice` (feature `play`), solo hace `client.destroy()`.
-- `deploy-commands.ts` también arma el app context, solo para usar el logger.
+- Los use-cases no van en el app context: `new TrackSkipper(appContext)`.
+- En el shutdown (`SIGINT`/`SIGTERM`) de `src/index.ts`, corre `QueueReleaser` por cada servidor de `queues.guildIds()` y hace `client.destroy()`.
+- `deploy-commands.ts` también arma el app context (con un client sin login), solo para usar el logger.
 
 ## Config
 
@@ -182,7 +181,7 @@ src/services/
 
 ## Errores
 
-- Todo error propio extiende `AppError` (`src/shared/errors/app-error.ts`). El mensaje incluye los valores que lo causaron.
+- Todo error propio extiende `AppError` (`src/shared/errors/app-error.ts`). El mensaje de los errores de infraestructura incluye los valores que lo causaron; el de los de negocio es el texto fijo que define el `ui.md` de la feature.
 - Hay tres tipos:
   - **Errores de negocio**: los que devuelve un use-case por una regla (`NotInVoiceChannelError`, `InvalidYoutubeUrlError`, `TrackNotFoundError`, `QueueEmptyError`). Extienden `BusinessError` y llevan su `code` en SCREAMING_SNAKE_CASE. Su `message` es el texto que ve el usuario en Discord.
   - **Input inválido**: `UseCase.execute` devuelve `InvalidInputError` (`INVALID_INPUT`) con el mensaje de `z.prettifyError`.

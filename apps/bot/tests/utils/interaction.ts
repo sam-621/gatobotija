@@ -8,6 +8,7 @@ interface CreateInteractionParams {
   options?: Record<string, OptionValue>;
   guildId?: string | null;
   voiceChannelId?: string | null;
+  displayName?: string;
   wsPing?: number;
 }
 
@@ -16,6 +17,7 @@ export function createInteraction({
   options = {},
   guildId = '200000000000000002',
   voiceChannelId = null,
+  displayName = 'Rick',
   wsPing = 42
 }: CreateInteractionParams) {
   const getOption = (name: string, required = false) => {
@@ -33,7 +35,8 @@ export function createInteraction({
     replied: false,
     isChatInputCommand: () => true,
     client: { ws: { ping: wsPing } },
-    member: { voice: { channelId: voiceChannelId } },
+    user: { displayName },
+    member: guildId ? { displayName, voice: { channelId: voiceChannelId } } : null,
     options: {
       getString: getOption,
       getInteger: getOption,

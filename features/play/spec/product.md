@@ -29,7 +29,8 @@ Como miembro del servidor, quiero pegar un link de YouTube con `/play`, para esc
 - Sin búsqueda por texto.
 - Un link de playlist con `v=` encola solo ese video; sin `v=`, es link inválido.
 - Hay que estar en un canal de voz para usar `/play`.
-- Si el bot ya está en un canal de voz del servidor y el usuario está en otro, responde error: no se muda de canal mientras suena algo.
+- Si el bot ya está en un canal de voz del servidor y el usuario está en otro, responde error: no se muda de canal mientras suena algo. Si está esperando con la cola vacía, se muda al canal del usuario.
+- Si sacan al bot del canal y no se reconecta, la cola se borra.
 - Video privado, borrado o con restricción que impida reproducirlo: error "no encontrado" y no se encola.
 - Si un track falla mientras suena, se salta al siguiente; el bot no se cae.
 - Una cola por servidor, en memoria. Se pierde al reiniciar.
@@ -50,10 +51,10 @@ Como miembro del servidor, quiero pegar un link de YouTube con `/play`, para esc
 
 ## Plan de trabajo recomendado
 
-1. [ ] bot: `GuildQueue` y `QueueRegistry` con sus tests.
-2. [ ] bot: `parseYoutubeUrl` con su test.
-3. [ ] bot: service `audio` (`AudioSource`, `YtDlpAudioSource`) con su test.
-4. [ ] bot: service `voice` (`VoicePlayer`, `DiscordVoicePlayer`, `DummyVoicePlayer`) con su test.
-5. [ ] bot: `TrackEnqueuer`, avance automático al terminar un track y salida por inactividad.
-6. [ ] bot: `/play` con su test.
+1. [x] bot: `GuildQueue` y `QueueRegistry` con sus tests.
+2. [x] bot: `parseYoutubeUrl` con su test.
+3. [x] bot: service `audio` (`AudioSource`, `YtDlpAudioSource`) con su test.
+4. [x] bot: service `voice` (`VoicePlayer`, `DiscordVoicePlayer`, `DummyVoicePlayer`) con su test.
+5. [x] bot: `TrackEnqueuer`, avance automático al terminar un track y salida por inactividad.
+6. [x] bot: `/play` con su test.
 7. [ ] bot: prueba manual en el servidor (la corre el usuario).

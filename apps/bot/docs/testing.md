@@ -26,8 +26,7 @@ El runner es Vitest. Una sola suite: no hay base de datos ni server que levantar
 | Pieza | Test | Ubicación |
 |-------|------|-----------|
 | Slash command | con una `interaction` falsa y un app context de test: lo que responde y el efecto en el estado | `tests/commands/<comando>/` |
-| Use-case usado desde un comando | lo cubre el test del comando | `tests/commands/<comando>/` |
-| Use-case que no sale de un comando (p. ej. el que avanza la cola en `onIdle`) | unit con `QueueRegistry` real y services falsos | junto al archivo |
+| Use-case | unit con `createTestAppContext()` (`QueueRegistry` real y services falsos): reglas, orden de errores y efectos en estado y services. El test del comando cubre solo lo del comando (opciones, respuestas, errores efímeros) | junto al archivo |
 | `GuildQueue`, `QueueRegistry` | unit, todos los casos: agregar, avanzar, fin de cola, limpiar, pausa | junto al archivo |
 | `events/interaction-create.ts` | unit: comando desconocido, comando que lanza → respuesta genérica y `logger.error` | junto al archivo |
 | Adapter de un service (`yt-dlp`, `discord`) | con su dependencia mockeada (`child_process`, `@discordjs/voice`): qué recibe y cómo responde a sus errores | junto al archivo |
