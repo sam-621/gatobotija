@@ -10,8 +10,8 @@ Reglas de negocio y decisiones en `product.md`.
 
 ## Services
 
-- `AudioSource.resolvePlaylist(url)`: `yt-dlp --flat-playlist --dump-single-json --playlist-end 101 <url>`. Pide uno de más para saber si hay más de 100.
-- Devuelve `{ title, tracks: ResolvedTrack[], truncated: boolean }`, con como máximo 100 tracks. Saca las entradas sin `id` o marcadas como no disponibles (`[Private video]`, `[Deleted video]`, `availability` distinto de `public`/`unlisted`/`null`). La `url` de cada track es `https://www.youtube.com/watch?v=<id>`.
+- `AudioSource.resolvePlaylist(url, limit)`: `yt-dlp --flat-playlist --dump-single-json --playlist-end <limit + 1> <url>`. Pide uno de más para saber si hay más. El tope de 100 es regla de negocio y lo pasa el use-case (`architecture.md` > Services: sin reglas).
+- Devuelve `{ title, tracks: ResolvedTrack[], truncated: boolean }`. Corta las entradas crudas a las primeras `limit` y después filtra, así se respetan "las primeras 100 en orden"; `truncated` = más de `limit` entradas crudas. Saca las entradas sin `id` o sin `title`, o marcadas como no disponibles (`[Private video]`, `[Deleted video]`, `availability` distinto de `public`/`unlisted`/`null`). La `url` de cada track es `https://www.youtube.com/watch?v=<id>`.
 - `duration` puede llegar `null` en modo flat; en ese caso `durationSeconds = 0`.
 - Playlist inexistente o privada → `null`; cualquier otro fallo → `AudioResolveFailedError`.
 - El `AudioSource` falso de los tests suma `resolvePlaylist`.
@@ -21,7 +21,8 @@ Reglas de negocio y decisiones en `product.md`.
 - Misma validación y en el mismo orden que `TrackEnqueuer`: sin canal, link inválido, otro canal (antes y después del `resolve`). Después, `resolvePlaylist` nulo o sin tracks → `PlaylistNotFoundError` (`PLAYLIST_NOT_FOUND`).
 - Agrega todos los tracks a la cola. Si no había `current`, arranca el primero con el mismo camino que `TrackEnqueuer` (`join`, `play`, callbacks): reusar, no duplicar.
 - Devuelve `{ title, count, truncated, startedTrack | null, position }`.
-- El comando `/play` elige el use-case según el `kind` del link, o un use-case recibe el link y delega. Un comando llama a un solo use-case (`architecture.md`), así que lo más probable es que el despacho viva en un use-case.
+- El despacho por `kind` vive en `TrackEnqueuer`: según el link llama a `resolve` o a `resolvePlaylist`, y los dos caminos comparten el mismo método de encolado y arranque. No hay `PlaylistEnqueuer`.
+- Para un video devuelve `{ track, position }`, como antes; el comando distingue las dos formas para armar la respuesta.
 
 ## Impacto en código existente
 

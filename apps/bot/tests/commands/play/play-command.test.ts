@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { PlayCommand } from '@/commands/play-command';
 import { onInteractionCreate } from '@/events/interaction-create';
 import { AudioResolveFailedError } from '@/services/audio/audio-errors';
+import { PlaylistFixtures } from '@tests/fixtures/playlist.fixtures';
 import { TrackFixtures } from '@tests/fixtures/track.fixtures';
 import { createTestAppContext, type TestAppContext } from '@tests/utils/app-context';
 import { createInteraction } from '@tests/utils/interaction';
@@ -93,18 +94,87 @@ describe('/play - Command', () => {
     expect(appContext.services.voice.plays).toEqual([]);
   });
 
-  test('replies an ephemeral error when the link is not a YouTube video', async () => {
+  test('queues the playlist and plays its first track when nothing is playing', async () => {
+    const stream = Readable.from([]);
+    vi.spyOn(appContext.services.audio, 'resolvePlaylist').mockResolvedValue(
+      PlaylistFixtures.Hits80s
+    );
+    vi.spyOn(appContext.services.audio, 'stream').mockResolvedValue(stream);
+    const interaction = playInteraction(PlaylistFixtures.Hits80s.url);
+
+    await PlayCommand.execute(interaction, appContext);
+
+    expect(interaction.editReply).toHaveBeenCalledWith({
+      content:
+        'Queued **2** tracks from **80s Hits**. Now playing **Never Gonna Give You Up** (3:33)'
+    });
+    expect(appContext.services.audio.resolvePlaylist).toHaveBeenCalledWith(
+      'https://www.youtube.com/playlist?list=PLx0sYbCqOb8TBPRdmBHs5Iftvv9TPboYG',
+      100
+    );
+    const queue = appContext.queues.get(guildId);
+    expect(queue.current?.title).toBe('Never Gonna Give You Up');
+    expect(queue.upcoming).toEqual([
+      {
+        title: 'Take On Me',
+        url: 'https://www.youtube.com/watch?v=djV11Xbc914',
+        durationSeconds: 225,
+        requestedBy: 'Rick'
+      }
+    ]);
+    expect(appContext.services.voice.joins).toEqual([
+      { guildId: '200000000000000002', channelId: '300000000000000003' }
+    ]);
+    expect(appContext.services.voice.plays).toEqual([{ guildId: '200000000000000002', stream }]);
+  });
+
+  test('adds the playlist to the end of the queue and notes the limit when something is playing', async () => {
+    vi.spyOn(appContext.services.audio, 'resolvePlaylist').mockResolvedValue(
+      PlaylistFixtures.Endless
+    );
+    const queue = appContext.queues.get(guildId);
+    queue.add(TrackFixtures.SongA);
+    queue.voiceChannelId = voiceChannelId;
+    const interaction = playInteraction(PlaylistFixtures.Endless.url);
+
+    await PlayCommand.execute(interaction, appContext);
+
+    expect(interaction.editReply).toHaveBeenCalledWith({
+      content: 'Queued **2** tracks from **Endless Hits** (only the first 100).'
+    });
+    expect(queue.current?.title).toBe('Never Gonna Give You Up');
+    expect(queue.upcoming.map(track => track.title)).toEqual(['Take On Me', 'Africa']);
+    expect(appContext.services.voice.joins).toEqual([]);
+    expect(appContext.services.voice.plays).toEqual([]);
+  });
+
+  test('omits the duration of the started playlist track when it is unknown', async () => {
+    vi.spyOn(appContext.services.audio, 'resolvePlaylist').mockResolvedValue(
+      PlaylistFixtures.UnknownDurations
+    );
+    const interaction = playInteraction(PlaylistFixtures.UnknownDurations.url);
+
+    await PlayCommand.execute(interaction, appContext);
+
+    expect(interaction.editReply).toHaveBeenCalledWith({
+      content: 'Queued **2** tracks from **Flat Hits**. Now playing **Blinding Lights**'
+    });
+  });
+
+  test('replies an ephemeral error when the link is not a YouTube video or playlist', async () => {
     const resolve = vi.spyOn(appContext.services.audio, 'resolve');
-    const interaction = playInteraction('https://www.youtube.com/playlist?list=PL1234567890');
+    const resolvePlaylist = vi.spyOn(appContext.services.audio, 'resolvePlaylist');
+    const interaction = playInteraction('https://www.youtube.com/playlist?list=RDdQw4w9WgXcQ');
 
     await PlayCommand.execute(interaction, appContext);
 
     expect(interaction.deleteReply).toHaveBeenCalled();
     expect(interaction.followUp).toHaveBeenCalledWith({
-      content: 'Only YouTube video links are supported.',
+      content: 'Only YouTube video or playlist links are supported.',
       flags: 64
     });
     expect(resolve).not.toHaveBeenCalled();
+    expect(resolvePlaylist).not.toHaveBeenCalled();
     expect(appContext.queues.get(guildId).current).toBeNull();
     expect(appContext.services.voice.joins).toEqual([]);
   });
@@ -135,6 +205,20 @@ describe('/play - Command', () => {
 
     expect(interaction.followUp).toHaveBeenCalledWith({
       content: 'That video is not available.',
+      flags: 64
+    });
+    expect(appContext.queues.get(guildId).current).toBeNull();
+    expect(appContext.services.voice.joins).toEqual([]);
+  });
+
+  test('replies an ephemeral error when the playlist is not available', async () => {
+    vi.spyOn(appContext.services.audio, 'resolvePlaylist').mockResolvedValue(null);
+    const interaction = playInteraction(PlaylistFixtures.Hits80s.url);
+
+    await PlayCommand.execute(interaction, appContext);
+
+    expect(interaction.followUp).toHaveBeenCalledWith({
+      content: 'That playlist is not available.',
       flags: 64
     });
     expect(appContext.queues.get(guildId).current).toBeNull();

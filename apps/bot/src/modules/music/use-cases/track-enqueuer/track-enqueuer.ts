@@ -5,14 +5,16 @@ import {
   DifferentVoiceChannelError,
   InvalidYoutubeUrlError,
   NotInVoiceChannelError,
+  PlaylistNotFoundError,
   TrackNotFoundError
 } from '@/modules/music/music-errors';
 import { QueueAdvancer } from '@/modules/music/use-cases/queue-advancer';
 import { QueueReleaser } from '@/modules/music/use-cases/queue-releaser';
+import type { ResolvedTrack } from '@/services/audio/audio-source';
 import { AppError } from '@/shared/errors/app-error';
 import type { Track } from '@/shared/types/track';
 import { UseCase } from '@/shared/use-case';
-import { parseYoutubeUrl } from '@/shared/utils/youtube-url';
+import { parseYoutubeUrl, YoutubeLinkKind } from '@/shared/utils/youtube-url';
 import type { GuildQueue } from '@/state/guild-queue';
 
 const EnqueueTrackSchema = z.object({
@@ -33,7 +35,28 @@ interface EnqueuedTrack {
   position: number;
 }
 
+interface EnqueuedPlaylist {
+  title: string;
+  count: number;
+  truncated: boolean;
+  startedTrack: Track | null;
+  position: number;
+}
+
+interface EnqueueRequest {
+  guildId: string;
+  voiceChannelId: string;
+  requestedBy: string;
+}
+
+interface EnqueuedTracks {
+  tracks: Track[];
+  position: number;
+}
+
 export class TrackEnqueuer extends UseCase<typeof EnqueueTrackSchema> {
+  private static readonly PLAYLIST_LIMIT = 100;
+
   constructor(private readonly appContext: AppContext) {
     super(EnqueueTrackSchema);
   }
@@ -42,62 +65,113 @@ export class TrackEnqueuer extends UseCase<typeof EnqueueTrackSchema> {
     input: z.output<typeof EnqueueTrackSchema>
   ): Promise<
     | EnqueuedTrack
+    | EnqueuedPlaylist
     | NotInVoiceChannelError
     | InvalidYoutubeUrlError
     | DifferentVoiceChannelError
     | TrackNotFoundError
+    | PlaylistNotFoundError
   > {
-    const { queues, services } = this.appContext;
-
     if (!input.voiceChannelId) return new NotInVoiceChannelError();
 
-    const url = parseYoutubeUrl(input.url);
+    const link = parseYoutubeUrl(input.url);
 
-    if (!url) return new InvalidYoutubeUrlError();
+    if (!link) return new InvalidYoutubeUrlError();
 
     if (this.isPlayingElsewhere(input.guildId, input.voiceChannelId)) {
       return new DifferentVoiceChannelError();
     }
 
-    const resolved = await services.audio.resolve(url);
+    const request: EnqueueRequest = {
+      guildId: input.guildId,
+      voiceChannelId: input.voiceChannelId,
+      requestedBy: input.requestedBy
+    };
+
+    if (link.kind === YoutubeLinkKind.Playlist) return this.enqueuePlaylist(request, link.url);
+
+    return this.enqueueVideo(request, link.url);
+  }
+
+  private async enqueueVideo(
+    request: EnqueueRequest,
+    url: string
+  ): Promise<EnqueuedTrack | DifferentVoiceChannelError | TrackNotFoundError> {
+    const resolved = await this.appContext.services.audio.resolve(url);
 
     if (!resolved) return new TrackNotFoundError();
 
-    if (this.isPlayingElsewhere(input.guildId, input.voiceChannelId)) {
-      return new DifferentVoiceChannelError();
-    }
+    const enqueued = await this.enqueue(request, [resolved]);
 
-    const queue = queues.get(input.guildId);
-    const track: Track = { ...resolved, requestedBy: input.requestedBy };
+    if (enqueued instanceof DifferentVoiceChannelError) return enqueued;
 
-    if (queue.current) return { track, position: queue.add(track) };
+    return { track: enqueued.tracks[0], position: enqueued.position };
+  }
 
-    queue.add(track);
-    queue.voiceChannelId = input.voiceChannelId;
+  private async enqueuePlaylist(
+    request: EnqueueRequest,
+    url: string
+  ): Promise<EnqueuedPlaylist | DifferentVoiceChannelError | PlaylistNotFoundError> {
+    const playlist = await this.appContext.services.audio.resolvePlaylist(
+      url,
+      TrackEnqueuer.PLAYLIST_LIMIT
+    );
+
+    if (!playlist || playlist.tracks.length === 0) return new PlaylistNotFoundError();
+
+    const enqueued = await this.enqueue(request, playlist.tracks);
+
+    if (enqueued instanceof DifferentVoiceChannelError) return enqueued;
+
+    return {
+      title: playlist.title,
+      count: enqueued.tracks.length,
+      truncated: playlist.truncated,
+      startedTrack: enqueued.position === 0 ? enqueued.tracks[0] : null,
+      position: enqueued.position
+    };
+  }
+
+  private async enqueue(
+    request: EnqueueRequest,
+    resolved: readonly ResolvedTrack[]
+  ): Promise<EnqueuedTracks | DifferentVoiceChannelError> {
+    const { queues, services } = this.appContext;
+    const { guildId, voiceChannelId, requestedBy } = request;
+
+    if (this.isPlayingElsewhere(guildId, voiceChannelId)) return new DifferentVoiceChannelError();
+
+    const queue = queues.get(guildId);
+    const tracks: Track[] = resolved.map(track => ({ ...track, requestedBy }));
+    const [position] = tracks.map(track => queue.add(track));
+
+    if (position > 0) return { tracks, position };
+
+    queue.voiceChannelId = voiceChannelId;
 
     try {
-      await services.voice.join(input.guildId, input.voiceChannelId);
+      await services.voice.join(guildId, voiceChannelId);
     } catch (error) {
-      if (queues.find(input.guildId) === queue) await this.release(input.guildId);
+      if (queues.find(guildId) === queue) await this.release(guildId);
 
       throw error;
     }
 
-    services.voice.onIdle(input.guildId, () => void this.advance(input.guildId));
-    services.voice.onDisconnect(input.guildId, () => void this.release(input.guildId));
-    services.voice.onChannelChange(input.guildId, channelId =>
-      this.updateVoiceChannel(input.guildId, queue, channelId)
+    services.voice.onIdle(guildId, () => void this.advance(guildId));
+    services.voice.onDisconnect(guildId, () => void this.release(guildId));
+    services.voice.onChannelChange(guildId, channelId =>
+      this.updateVoiceChannel(guildId, queue, channelId)
     );
 
     try {
-      await this.play(input.guildId, queue, track);
+      await this.play(guildId, queue, tracks[0]);
     } catch (error) {
-      if (queues.find(input.guildId) === queue) await this.advance(input.guildId);
+      if (queues.find(guildId) === queue) await this.advance(guildId);
 
       throw error;
     }
 
-    return { track, position: 0 };
+    return { tracks, position: 0 };
   }
 
   private isPlayingElsewhere(guildId: string, voiceChannelId: string): boolean {

@@ -13,6 +13,7 @@ export type TestAppContext = AppContext & {
 export function createTestAppContext(): TestAppContext {
   const audio: AudioSource = {
     resolve: async () => null,
+    resolvePlaylist: async () => null,
     stream: async () => Readable.from([])
   };
 

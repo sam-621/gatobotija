@@ -5,6 +5,7 @@ export const MusicErrorCode = {
   InvalidYoutubeUrl: 'INVALID_YOUTUBE_URL',
   DifferentVoiceChannel: 'DIFFERENT_VOICE_CHANNEL',
   TrackNotFound: 'TRACK_NOT_FOUND',
+  PlaylistNotFound: 'PLAYLIST_NOT_FOUND',
   QueueEmpty: 'QUEUE_EMPTY',
   AlreadyPaused: 'ALREADY_PAUSED',
   NotPaused: 'NOT_PAUSED',
@@ -21,7 +22,7 @@ export class NotInVoiceChannelError extends BusinessError<MusicErrorCode> {
 
 export class InvalidYoutubeUrlError extends BusinessError<MusicErrorCode> {
   constructor() {
-    super('INVALID_YOUTUBE_URL', 'Only YouTube video links are supported.');
+    super('INVALID_YOUTUBE_URL', 'Only YouTube video or playlist links are supported.');
   }
 }
 
@@ -34,6 +35,12 @@ export class DifferentVoiceChannelError extends BusinessError<MusicErrorCode> {
 export class TrackNotFoundError extends BusinessError<MusicErrorCode> {
   constructor() {
     super('TRACK_NOT_FOUND', 'That video is not available.');
+  }
+}
+
+export class PlaylistNotFoundError extends BusinessError<MusicErrorCode> {
+  constructor() {
+    super('PLAYLIST_NOT_FOUND', 'That playlist is not available.');
   }
 }
 

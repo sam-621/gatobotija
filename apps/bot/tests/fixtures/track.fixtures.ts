@@ -16,5 +16,11 @@ export const TrackFixtures = {
     url: 'https://www.youtube.com/watch?v=FTQbiNvZqaY',
     durationSeconds: 295,
     requestedBy: 'David'
+  },
+  SongWithoutDuration: {
+    title: 'Blinding Lights',
+    url: 'https://www.youtube.com/watch?v=4NRXx6U8ABQ',
+    durationSeconds: 0,
+    requestedBy: 'Abel'
   }
 } as const;

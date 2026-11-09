@@ -22,19 +22,34 @@ async function execute(interaction: ChatInputCommandInteraction, appContext: App
     requestedBy: getDisplayName(interaction)
   });
 
-  await reply(interaction, result, ({ track, position }) => {
-    const label = `**${track.title}** (${formatDuration(track.durationSeconds)})`;
+  await reply(interaction, result, enqueued => {
+    if ('track' in enqueued) {
+      const { track, position } = enqueued;
+      const label = `**${track.title}** (${formatDuration(track.durationSeconds)})`;
 
-    return position === 0 ? `Now playing ${label}` : `Queued ${label} at position ${position}`;
+      return position === 0 ? `Now playing ${label}` : `Queued ${label} at position ${position}`;
+    }
+
+    const { title, count, truncated, startedTrack } = enqueued;
+    const limitNote = truncated ? ' (only the first 100)' : '';
+    const queued = `Queued **${count}** tracks from **${title}**${limitNote}.`;
+
+    if (!startedTrack) return queued;
+
+    const duration = startedTrack.durationSeconds
+      ? ` (${formatDuration(startedTrack.durationSeconds)})`
+      : '';
+
+    return `${queued} Now playing **${startedTrack.title}**${duration}`;
   });
 }
 
 export const PlayCommand: Command = {
   data: new SlashCommandBuilder()
     .setName('play')
-    .setDescription('Plays a YouTube video or adds it to the queue')
+    .setDescription('Plays a YouTube video or playlist, or adds it to the queue')
     .addStringOption(option =>
-      option.setName('url').setDescription('YouTube video link').setRequired(true)
+      option.setName('url').setDescription('YouTube video or playlist link').setRequired(true)
     ),
   execute
 };

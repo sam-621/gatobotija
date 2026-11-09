@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import { AudioStreamFailedError } from '@/services/audio/audio-errors';
 import { VoiceConnectionFailedError, VoiceNotConnectedError } from '@/services/voice/voice-errors';
+import { PlaylistFixtures } from '@tests/fixtures/playlist.fixtures';
 import { TrackFixtures } from '@tests/fixtures/track.fixtures';
 import { createTestAppContext, type TestAppContext } from '@tests/utils/app-context';
 
@@ -136,6 +137,86 @@ describe('TrackEnqueuer', () => {
     expect(appContext.queues.get(guildId).current?.title).toBe('Never Gonna Give You Up');
   });
 
+  test('joins and plays the first track of a playlist and queues the rest when nothing is playing', async () => {
+    const stream = Readable.from([]);
+    vi.spyOn(appContext.services.audio, 'resolvePlaylist').mockResolvedValue(
+      PlaylistFixtures.Hits80s
+    );
+    vi.spyOn(appContext.services.audio, 'stream').mockResolvedValue(stream);
+    const resolve = vi.spyOn(appContext.services.audio, 'resolve');
+
+    const result = await enqueue(PlaylistFixtures.Hits80s.url);
+
+    expect(result).toEqual({
+      title: '80s Hits',
+      count: 2,
+      truncated: false,
+      startedTrack: {
+        title: 'Never Gonna Give You Up',
+        url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+        durationSeconds: 213,
+        requestedBy: 'Rick'
+      },
+      position: 0
+    });
+    expect(appContext.services.audio.resolvePlaylist).toHaveBeenCalledWith(
+      'https://www.youtube.com/playlist?list=PLx0sYbCqOb8TBPRdmBHs5Iftvv9TPboYG',
+      100
+    );
+    expect(resolve).not.toHaveBeenCalled();
+    const queue = appContext.queues.get(guildId);
+    expect(queue.current?.title).toBe('Never Gonna Give You Up');
+    expect(queue.upcoming).toEqual([
+      {
+        title: 'Take On Me',
+        url: 'https://www.youtube.com/watch?v=djV11Xbc914',
+        durationSeconds: 225,
+        requestedBy: 'Rick'
+      }
+    ]);
+    expect(appContext.services.voice.joins).toEqual([
+      { guildId: '200000000000000002', channelId: '300000000000000003' }
+    ]);
+    expect(appContext.services.voice.plays).toEqual([{ guildId: '200000000000000002', stream }]);
+  });
+
+  test('advances to the next playlist track when the voice becomes idle', async () => {
+    vi.spyOn(appContext.services.audio, 'resolvePlaylist').mockResolvedValue(
+      PlaylistFixtures.Hits80s
+    );
+    await enqueue(PlaylistFixtures.Hits80s.url);
+
+    appContext.services.voice.emitIdle(guildId);
+    await vi.waitFor(() => expect(appContext.services.voice.plays).toHaveLength(2));
+
+    expect(appContext.queues.get(guildId).current?.title).toBe('Take On Me');
+  });
+
+  test('adds every playlist track to the end of the queue without playing when something is playing', async () => {
+    vi.spyOn(appContext.services.audio, 'resolvePlaylist').mockResolvedValue(
+      PlaylistFixtures.Endless
+    );
+    const stream = vi.spyOn(appContext.services.audio, 'stream');
+    const queue = appContext.queues.get(guildId);
+    queue.add(TrackFixtures.SongA);
+    queue.add(TrackFixtures.SongC);
+    queue.voiceChannelId = voiceChannelId;
+
+    const result = await enqueue(PlaylistFixtures.Endless.url);
+
+    expect(result).toEqual({
+      title: 'Endless Hits',
+      count: 2,
+      truncated: true,
+      startedTrack: null,
+      position: 2
+    });
+    expect(queue.upcoming.map(track => track.title)).toEqual(['Africa', 'Take On Me', 'Africa']);
+    expect(queue.upcoming.map(track => track.requestedBy)).toEqual(['David', 'Rick', 'Rick']);
+    expect(appContext.services.voice.joins).toEqual([]);
+    expect(stream).not.toHaveBeenCalled();
+  });
+
   test('returns NotInVoiceChannelError before validating the url', async () => {
     const resolve = vi.spyOn(appContext.services.audio, 'resolve');
 
@@ -194,6 +275,44 @@ describe('TrackEnqueuer', () => {
 
     expect(result).toMatchObject({ code: 'TRACK_NOT_FOUND' });
     expect(appContext.queues.get(guildId).current).toBeNull();
+    expect(appContext.services.voice.joins).toEqual([]);
+  });
+
+  test('returns PlaylistNotFoundError when the playlist is not available', async () => {
+    vi.spyOn(appContext.services.audio, 'resolvePlaylist').mockResolvedValue(null);
+
+    const result = await enqueue(PlaylistFixtures.Hits80s.url);
+
+    expect(result).toMatchObject({ code: 'PLAYLIST_NOT_FOUND' });
+    expect(appContext.queues.get(guildId).current).toBeNull();
+    expect(appContext.services.voice.joins).toEqual([]);
+  });
+
+  test('returns PlaylistNotFoundError when the playlist has no available tracks', async () => {
+    vi.spyOn(appContext.services.audio, 'resolvePlaylist').mockResolvedValue(
+      PlaylistFixtures.Empty
+    );
+
+    const result = await enqueue(PlaylistFixtures.Empty.url);
+
+    expect(result).toMatchObject({ code: 'PLAYLIST_NOT_FOUND' });
+    expect(appContext.queues.get(guildId).current).toBeNull();
+    expect(appContext.services.voice.joins).toEqual([]);
+  });
+
+  test('returns DifferentVoiceChannelError when another channel started playing while resolving the playlist', async () => {
+    vi.spyOn(appContext.services.audio, 'resolvePlaylist').mockImplementation(async () => {
+      const queue = appContext.queues.get(guildId);
+      queue.add(TrackFixtures.SongC);
+      queue.voiceChannelId = '400000000000000004';
+
+      return PlaylistFixtures.Hits80s;
+    });
+
+    const result = await enqueue(PlaylistFixtures.Hits80s.url);
+
+    expect(result).toMatchObject({ code: 'DIFFERENT_VOICE_CHANNEL' });
+    expect(appContext.queues.get(guildId).upcoming).toEqual([]);
     expect(appContext.services.voice.joins).toEqual([]);
   });
 

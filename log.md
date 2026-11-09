@@ -26,3 +26,4 @@
 - [playback-controls] Se cierra la feature.
 - [playlists] Se crea la feature: `/play` acepta links de playlists de YouTube y YouTube Music.
 - (bot) Docs de arquitectura: `/play` acepta links de playlist y `parseYoutubeUrl` distingue video y playlist.
+- [playlists] (bot) `/play` encola playlists de YouTube y YouTube Music (máximo 100 canciones, sin mixes); falta la prueba manual.

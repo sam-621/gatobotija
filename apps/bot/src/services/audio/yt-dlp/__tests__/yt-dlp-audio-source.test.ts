@@ -124,6 +124,111 @@ describe('YtDlpAudioSource', () => {
     });
   });
 
+  describe('resolvePlaylist', () => {
+    const playlistUrl = 'https://www.youtube.com/playlist?list=PLx0sYbCqOb8TBPRdmBHs5Iftvv9TPboYG';
+
+    test('returns the title and the available tracks of the playlist in order', async () => {
+      const result = audio.resolvePlaylist(playlistUrl, 100);
+      finish(children[0], 0, JSON.stringify(YtDlpFixtures.PlaylistInfo), '');
+
+      await expect(result).resolves.toEqual({
+        title: '80s Hits',
+        tracks: [
+          {
+            title: 'Never Gonna Give You Up',
+            url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+            durationSeconds: 213
+          },
+          {
+            title: 'Take On Me',
+            url: 'https://www.youtube.com/watch?v=djV11Xbc914',
+            durationSeconds: 0
+          },
+          {
+            title: 'Africa',
+            url: 'https://www.youtube.com/watch?v=FTQbiNvZqaY',
+            durationSeconds: 295
+          }
+        ],
+        truncated: false
+      });
+      expect(spawn).toHaveBeenCalledWith(
+        'yt-dlp',
+        [
+          '--flat-playlist',
+          '--dump-single-json',
+          '--playlist-end',
+          '101',
+          'https://www.youtube.com/playlist?list=PLx0sYbCqOb8TBPRdmBHs5Iftvv9TPboYG'
+        ],
+        { stdio: ['ignore', 'pipe', 'pipe'] }
+      );
+    });
+
+    test('returns the first 100 tracks marked as truncated when the playlist has more', async () => {
+      const result = audio.resolvePlaylist(playlistUrl, 100);
+      finish(children[0], 0, JSON.stringify(YtDlpFixtures.LongPlaylistInfo), '');
+
+      const playlist = await result;
+
+      expect(playlist?.tracks).toHaveLength(100);
+      expect(playlist?.tracks[99]).toEqual({
+        title: 'Song 100',
+        url: 'https://www.youtube.com/watch?v=song0000099',
+        durationSeconds: 200
+      });
+      expect(playlist?.truncated).toBe(true);
+    });
+
+    test('drops unavailable entries among the first 100 without queuing the 101st', async () => {
+      const result = audio.resolvePlaylist(playlistUrl, 100);
+      finish(children[0], 0, JSON.stringify(YtDlpFixtures.LongPlaylistWithPrivateInfo), '');
+
+      const playlist = await result;
+
+      expect(playlist?.tracks).toHaveLength(99);
+      expect(playlist?.tracks.map(track => track.title)).not.toContain('Song 101');
+      expect(playlist?.truncated).toBe(true);
+    });
+
+    test('returns null when the playlist does not exist', async () => {
+      const result = audio.resolvePlaylist(playlistUrl, 100);
+      finish(children[0], 1, '', YtDlpFixtures.PlaylistNotFoundStderr);
+
+      await expect(result).resolves.toBeNull();
+    });
+
+    test('returns null when the playlist is private', async () => {
+      const result = audio.resolvePlaylist(playlistUrl, 100);
+      finish(children[0], 1, '', YtDlpFixtures.PrivatePlaylistStderr);
+
+      await expect(result).resolves.toBeNull();
+    });
+
+    test('throws AudioResolveFailedError when yt-dlp fails for another reason', async () => {
+      const result = audio.resolvePlaylist(playlistUrl, 100);
+      finish(children[0], 1, '', YtDlpFixtures.NetworkStderr);
+
+      await expect(result).rejects.toThrow(
+        'yt-dlp failed resolving https://www.youtube.com/playlist?list=PLx0sYbCqOb8TBPRdmBHs5Iftvv9TPboYG: ERROR: Unable to download API page: <urlopen error [Errno 8] nodename nor servname>'
+      );
+    });
+
+    test('throws AudioResolveFailedError when the output is not valid JSON', async () => {
+      const result = audio.resolvePlaylist(playlistUrl, 100);
+      finish(children[0], 0, YtDlpFixtures.InvalidJsonOutput, '');
+
+      await expect(result).rejects.toMatchObject({ name: 'AudioResolveFailedError' });
+    });
+
+    test('throws AudioResolveFailedError when the output has no title', async () => {
+      const result = audio.resolvePlaylist(playlistUrl, 100);
+      finish(children[0], 0, JSON.stringify(YtDlpFixtures.PlaylistWithoutTitle), '');
+
+      await expect(result).rejects.toMatchObject({ name: 'AudioResolveFailedError' });
+    });
+  });
+
   describe('stream', () => {
     function spawnAll() {
       setImmediate(() => children.forEach(child => child.emit('spawn')));
