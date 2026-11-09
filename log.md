@@ -10,3 +10,7 @@
 - [play] Se crea la feature: `/play` con links de YouTube, cola por servidor y salida por inactividad.
 - [playback-controls] Se crea la feature: `/skip`, `/pause`, `/resume` y `/stop`.
 - [queue-view] Se crea la feature: `/nowplaying` y `/queue`.
+- [bot-setup] (bot) Proyecto base, config, logger y errores.
+- [bot-setup] (bot) El bot se conecta, registra comandos por servidor y maneja errores de comandos.
+- [bot-setup] (bot) `/ping` responde con la latencia.
+- [bot-setup] Se cierra la feature.
