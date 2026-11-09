@@ -9,3 +9,5 @@
 - bot: `/play` encola playlists. El despacho vive en `TrackEnqueuer`, que comparte el arranque con el camino de video, y el tope de 100 vive en el use-case.
 - Cambia `technical.md`: `resolvePlaylist` recibe el límite y no hay `PlaylistEnqueuer`.
 - Las descripciones del slash command cambiaron: hace falta `yarn commands:deploy`.
+- bot: probado en el servidor, las playlists se encolan bien.
+- Se cierra la feature.

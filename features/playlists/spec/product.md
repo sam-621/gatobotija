@@ -1,5 +1,5 @@
 ---
-status: active
+status: done
 apps: [bot]
 created: 2026-11-09
 ---
@@ -50,4 +50,4 @@ Como miembro del servidor, quiero pegar el link de una playlist de YouTube o You
 1. [x] bot: `parseYoutubeUrl` distingue video y playlist, con su test.
 2. [x] bot: `AudioSource.resolvePlaylist` en `YtDlpAudioSource`, con su test.
 3. [x] bot: `/play` encola playlists (`PlaylistEnqueuer` o extensión de `TrackEnqueuer`), con su test.
-4. [ ] bot: prueba manual en el servidor (la corre el usuario).
+4. [x] bot: prueba manual en el servidor (la corre el usuario).
