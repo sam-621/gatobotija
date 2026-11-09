@@ -4,7 +4,7 @@ Capacidades que debe tener la interfaz en Discord (slash commands, opciones y re
 
 Las capacidades (qué recibe, qué responde, estados) son obligatorias. La forma (texto plano, embed, botones, efímero o no) es una propuesta: si se resuelve distinto, se actualiza este archivo para reflejar lo construido.
 
-Errores comunes a los cuatro (efímeros): `You need to be in a voice channel.`, `You need to be in my voice channel.`, `Nothing is playing.`
+Errores comunes a los cuatro (efímeros): `You need to be in a voice channel.`, `You need to be in my voice channel.`. `/skip`, `/pause` y `/stop` con nada sonando: `Nothing is playing.`
 
 ## Comandos nuevos
 
@@ -24,7 +24,7 @@ Errores comunes a los cuatro (efímeros): `You need to be in a voice channel.`, 
 
 - **Opciones:** ninguna.
 - **Responde:** `Resumed **Song A**.`
-- **Estados:** no está en pausa: `Nothing is paused.` (efímero).
+- **Estados:** no está en pausa, incluso con nada sonando: `Nothing is paused.` (efímero).
 
 ### /stop
 

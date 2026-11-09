@@ -94,6 +94,26 @@ export class DiscordVoicePlayer implements VoicePlayer {
     voice.player.play(createAudioResource(stream, { inputType: StreamType.OggOpus }));
   }
 
+  pause(guildId: string) {
+    const voice = this.guilds.get(guildId);
+
+    if (!voice) throw new VoiceNotConnectedError(guildId);
+
+    voice.player.pause();
+  }
+
+  resume(guildId: string) {
+    const voice = this.guilds.get(guildId);
+
+    if (!voice) throw new VoiceNotConnectedError(guildId);
+
+    voice.player.unpause();
+  }
+
+  stop(guildId: string) {
+    this.guilds.get(guildId)?.player.stop(true);
+  }
+
   leave(guildId: string) {
     this.idleCallbacks.delete(guildId);
     this.disconnectCallbacks.delete(guildId);

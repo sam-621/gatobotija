@@ -20,3 +20,7 @@
 - (bot) Decisión: el deploy en Railway va con un `Dockerfile` propio que instala `ffmpeg` y el último `yt-dlp`; todavía no está armado.
 - [play] (bot) Probado en el servidor: `/play` reproduce.
 - [play] Se cierra la feature.
+- [playback-controls] (bot) `/skip`, `/pause`, `/resume` y `/stop` funcionan desde el mismo canal de voz que el bot; `/stop` vacía la cola y sale del canal; falta la prueba manual.
+- (bot) Docs de arquitectura: un use-case puede llamar a otro para reusar su lógica, y `stop`/`leave` del voice player no fallan sin conexión.
+- [playback-controls] (bot) Probado en el servidor: los controles funcionan.
+- [playback-controls] Se cierra la feature.

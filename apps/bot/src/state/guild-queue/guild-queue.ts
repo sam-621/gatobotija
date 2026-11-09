@@ -49,6 +49,14 @@ export class GuildQueue {
     return this.currentTrack;
   }
 
+  pause() {
+    if (this.currentTrack) this.playbackStatus = PlaybackStatus.Paused;
+  }
+
+  resume() {
+    if (this.currentTrack) this.playbackStatus = PlaybackStatus.Playing;
+  }
+
   clear() {
     this.cancelIdleTimeout();
     this.currentTrack = null;

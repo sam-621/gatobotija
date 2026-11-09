@@ -1,5 +1,5 @@
 ---
-status: active
+status: done
 apps: [bot]
 created: 2026-11-09
 ---
@@ -40,7 +40,7 @@ Como miembro del servidor, quiero saltar, pausar, reanudar o detener la música,
 
 ## Plan de trabajo recomendado
 
-1. [ ] bot: `TrackSkipper` y `/skip` con su test.
-2. [ ] bot: `PlaybackPauser`, `PlaybackResumer`, `/pause` y `/resume` con sus tests.
-3. [ ] bot: `PlaybackStopper` y `/stop` con su test.
-4. [ ] bot: prueba manual en el servidor (la corre el usuario).
+1. [x] bot: `TrackSkipper` y `/skip` con su test.
+2. [x] bot: `PlaybackPauser`, `PlaybackResumer`, `/pause` y `/resume` con sus tests.
+3. [x] bot: `PlaybackStopper` y `/stop` con su test.
+4. [x] bot: prueba manual en el servidor (la corre el usuario).

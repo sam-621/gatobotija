@@ -29,6 +29,8 @@ vi.mock('@discordjs/voice', () => ({
 
 class FakeAudioPlayer extends EventEmitter {
   play = vi.fn();
+  pause = vi.fn();
+  unpause = vi.fn();
   stop = vi.fn();
 }
 
@@ -106,6 +108,31 @@ describe('DiscordVoicePlayer', () => {
 
     expect(voice.createAudioResource).toHaveBeenCalledWith(stream, { inputType: 'ogg/opus' });
     expect(player.play).toHaveBeenCalledWith({ resource: true });
+  });
+
+  test('pauses the audio player', async () => {
+    await voicePlayer.join(guildId, '300000000000000003');
+
+    voicePlayer.pause(guildId);
+
+    expect(player.pause).toHaveBeenCalled();
+  });
+
+  test('resumes the audio player', async () => {
+    await voicePlayer.join(guildId, '300000000000000003');
+
+    voicePlayer.resume(guildId);
+
+    expect(player.unpause).toHaveBeenCalled();
+  });
+
+  test('stops the audio player right away', async () => {
+    await voicePlayer.join(guildId, '300000000000000003');
+
+    voicePlayer.stop(guildId);
+
+    expect(player.stop).toHaveBeenCalledWith(true);
+    expect(connection.destroy).not.toHaveBeenCalled();
   });
 
   test('calls the idle callback when the audio player becomes idle', async () => {
@@ -257,6 +284,12 @@ describe('DiscordVoicePlayer', () => {
     expect(connection.destroy).not.toHaveBeenCalled();
   });
 
+  test('does nothing when stopping a guild without connection', () => {
+    voicePlayer.stop(guildId);
+
+    expect(player.stop).not.toHaveBeenCalled();
+  });
+
   test('throws VoiceConnectionFailedError and destroys the connection when it does not get ready', async () => {
     voice.entersState.mockRejectedValue(new Error('The operation was aborted'));
 
@@ -277,6 +310,15 @@ describe('DiscordVoicePlayer', () => {
 
   test('throws VoiceNotConnectedError when playing without joining', () => {
     expect(() => voicePlayer.play(guildId, new PassThrough())).toThrow(
+      'Not connected to a voice channel in guild 200000000000000002'
+    );
+  });
+
+  test('throws VoiceNotConnectedError when pausing or resuming without joining', () => {
+    expect(() => voicePlayer.pause(guildId)).toThrow(
+      'Not connected to a voice channel in guild 200000000000000002'
+    );
+    expect(() => voicePlayer.resume(guildId)).toThrow(
       'Not connected to a voice channel in guild 200000000000000002'
     );
   });

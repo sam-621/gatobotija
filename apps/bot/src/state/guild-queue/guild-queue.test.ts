@@ -69,6 +69,33 @@ describe('GuildQueue', () => {
     expect(queue.status).toBe('idle');
   });
 
+  test('pauses the current track', () => {
+    queue.add(TrackFixtures.SongA);
+
+    queue.pause();
+
+    expect(queue.status).toBe('paused');
+  });
+
+  test('resumes a paused track', () => {
+    queue.add(TrackFixtures.SongA);
+    queue.pause();
+
+    queue.resume();
+
+    expect(queue.status).toBe('playing');
+  });
+
+  test('returns to playing on next while paused', () => {
+    queue.add(TrackFixtures.SongA);
+    queue.add(TrackFixtures.SongB);
+    queue.pause();
+
+    queue.next();
+
+    expect(queue.status).toBe('playing');
+  });
+
   test('clears the current and upcoming tracks', () => {
     queue.add(TrackFixtures.SongA);
     queue.add(TrackFixtures.SongB);
@@ -127,5 +154,15 @@ describe('GuildQueue', () => {
 
     expect(first).not.toHaveBeenCalled();
     expect(second).toHaveBeenCalledOnce();
+  });
+
+  test('does not pause or resume without a current track', () => {
+    queue.pause();
+
+    expect(queue.status).toBe('idle');
+
+    queue.resume();
+
+    expect(queue.status).toBe('idle');
   });
 });

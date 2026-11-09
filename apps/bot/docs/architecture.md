@@ -115,6 +115,7 @@ Un archivo por recurso en cada capa (`play-command.ts`, `music-errors.ts`, `guil
 - Las reglas viven aquí: hay que estar en un canal de voz, no se puede saltar con la cola vacía, al terminar un track arranca el siguiente, al vaciarse la cola el bot sale del canal después de un rato.
 - Se instancian donde se usan, pasándoles el `appContext`. No hay un registro de use-cases.
 - Un use-case puede crear otros para los callbacks de voz que registra: `TrackEnqueuer` engancha `onIdle` → `QueueAdvancer` y `onDisconnect` → `QueueReleaser`. El callback atrapa y loguea lo que se lance.
+- Un use-case también puede llamar a otro en su flujo principal para reusar su lógica, sin duplicarla: `TrackSkipper` llama a `QueueAdvancer.execute` con `await` y suma a su tipo de retorno los errores que ese devuelva (p. ej. `InvalidInputError`).
 
 ## Links de YouTube
 
@@ -127,7 +128,7 @@ Casos iniciales: `TrackEnqueuer` (`/play`), `TrackSkipper` (`/skip`), `PlaybackS
 
 ## Estado en memoria
 
-- `GuildQueue` es lógica pura, sin discord.js ni services: guarda los tracks, el actual, el canal de voz y si está en pausa; expone `add`, `next`, `clear`, `current`, `upcoming`. No reproduce nada.
+- `GuildQueue` es lógica pura, sin discord.js ni services: guarda los tracks, el actual, el canal de voz y si está en pausa; expone `add`, `next`, `clear`, `pause`, `resume`, `current`, `upcoming`. `pause` y `resume` solo fijan el estado y no hacen nada sin track actual. No reproduce nada.
 - `GuildQueue` también guarda el timer de inactividad (`startIdleTimeout(cb, ms)` / `cancelIdleTimeout()`); `add` y `clear` lo cancelan. Qué hace el callback lo decide el use-case.
 - `QueueRegistry` mapea `guildId` → `GuildQueue` y crea la cola la primera vez que se pide (`get(guildId)`). `find(guildId)` la devuelve o `null` sin crearla (para comprobar que la cola sigue siendo la misma tras un `await`) y `guildIds()` lista los servidores con cola. Es la única fuente del estado y vive en `appContext.queues`.
 - Nada persiste: al reiniciar el bot, las colas empiezan vacías. Es una decisión, no un pendiente.
@@ -159,6 +160,7 @@ src/services/
 - `Track` es un tipo plano propio (`{ title, url, durationSeconds, requestedBy }`) en `src/shared/types/track.ts`.
 - `VoicePlayer` lleva un player por servidor dentro del adapter; los use-cases solo pasan el `guildId`.
 - Los callbacks de `VoicePlayer` avisan, no deciden: `onIdle` cuando el `AudioPlayer` pasa a `Idle`; `onDisconnect` cuando la conexión cae y no vuelve en 5 s o la destruyen desde afuera (un `leave` propio no lo dispara); `onChannelChange` cuando mueven al bot a otro canal. El service nunca toca el estado: el use-case actualiza o libera la cola.
+- Sin conexión en el servidor, los métodos que dejan de sonar o salen (`stop`, `leave`) no hacen nada, porque el resultado ya es el que se pedía. Los que necesitan audio activo (`play`, `pause`, `resume`) lanzan `VoiceNotConnectedError`.
 
 ## App context
 

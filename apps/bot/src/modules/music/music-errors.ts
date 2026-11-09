@@ -4,7 +4,11 @@ export const MusicErrorCode = {
   NotInVoiceChannel: 'NOT_IN_VOICE_CHANNEL',
   InvalidYoutubeUrl: 'INVALID_YOUTUBE_URL',
   DifferentVoiceChannel: 'DIFFERENT_VOICE_CHANNEL',
-  TrackNotFound: 'TRACK_NOT_FOUND'
+  TrackNotFound: 'TRACK_NOT_FOUND',
+  QueueEmpty: 'QUEUE_EMPTY',
+  AlreadyPaused: 'ALREADY_PAUSED',
+  NotPaused: 'NOT_PAUSED',
+  NotInBotVoiceChannel: 'NOT_IN_BOT_VOICE_CHANNEL'
 } as const;
 
 export type MusicErrorCode = (typeof MusicErrorCode)[keyof typeof MusicErrorCode];
@@ -30,5 +34,29 @@ export class DifferentVoiceChannelError extends BusinessError<MusicErrorCode> {
 export class TrackNotFoundError extends BusinessError<MusicErrorCode> {
   constructor() {
     super('TRACK_NOT_FOUND', 'That video is not available.');
+  }
+}
+
+export class QueueEmptyError extends BusinessError<MusicErrorCode> {
+  constructor() {
+    super('QUEUE_EMPTY', 'Nothing is playing.');
+  }
+}
+
+export class AlreadyPausedError extends BusinessError<MusicErrorCode> {
+  constructor() {
+    super('ALREADY_PAUSED', 'Already paused.');
+  }
+}
+
+export class NotPausedError extends BusinessError<MusicErrorCode> {
+  constructor() {
+    super('NOT_PAUSED', 'Nothing is paused.');
+  }
+}
+
+export class NotInBotVoiceChannelError extends BusinessError<MusicErrorCode> {
+  constructor() {
+    super('NOT_IN_BOT_VOICE_CHANNEL', 'You need to be in my voice channel.');
   }
 }

@@ -5,6 +5,9 @@ import type { VoicePlayer } from '../voice-player';
 export class DummyVoicePlayer implements VoicePlayer {
   readonly joins: { guildId: string; channelId: string }[] = [];
   readonly plays: { guildId: string; stream: Readable }[] = [];
+  readonly pauses: string[] = [];
+  readonly resumes: string[] = [];
+  readonly stops: string[] = [];
   readonly leaves: string[] = [];
   private readonly idleCallbacks = new Map<string, () => void>();
   private readonly disconnectCallbacks = new Map<string, () => void>();
@@ -16,6 +19,18 @@ export class DummyVoicePlayer implements VoicePlayer {
 
   play(guildId: string, stream: Readable) {
     this.plays.push({ guildId, stream });
+  }
+
+  pause(guildId: string) {
+    this.pauses.push(guildId);
+  }
+
+  resume(guildId: string) {
+    this.resumes.push(guildId);
+  }
+
+  stop(guildId: string) {
+    this.stops.push(guildId);
   }
 
   leave(guildId: string) {
