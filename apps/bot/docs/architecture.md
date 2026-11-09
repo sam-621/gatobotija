@@ -120,7 +120,10 @@ Un archivo por recurso en cada capa (`play-command.ts`, `music-errors.ts`, `guil
 ## Links de YouTube
 
 - `/play` solo acepta links de un video de YouTube: `youtube.com/watch?v=<id>`, `youtu.be/<id>`, `music.youtube.com/watch?v=<id>` y `youtube.com/shorts/<id>`, con o sin `www.`/`m.`.
-- `parseYoutubeUrl(url)` (`src/shared/utils/youtube-url.ts`) devuelve la URL normalizada (`https://www.youtube.com/watch?v=<id>`) o `null`. Se queda solo con el video: `list=`, `t=` y demás parámetros se ignoran.
+- También acepta links de playlist: `youtube.com/playlist?list=<id>` y `music.youtube.com/playlist?list=<id>`, con o sin `www.`/`m.`. Los mixes (`list` que empieza con `RD`) no se aceptan.
+- `parseYoutubeUrl(url)` (`src/shared/utils/youtube-url.ts`) devuelve `{ kind: 'video', url }`, `{ kind: 'playlist', url }` o `null`.
+  - Un video se normaliza a `https://www.youtube.com/watch?v=<id>`. Si hay `v=`, el link es de video: `list=`, `t=` y los demás parámetros se ignoran.
+  - Una playlist se normaliza a `https://www.youtube.com/playlist?list=<id>`.
 - El schema del use-case solo valida que llegue un string no vacío. Si `parseYoutubeUrl` devuelve `null`, `run` devuelve `InvalidYoutubeUrlError` antes de tocar la cola o los services.
 - Al `AudioSource` solo le llega la URL ya normalizada.
 
@@ -145,7 +148,7 @@ Un service es una capa sobre algo externo: la voz de Discord, los datos y el str
 ```
 src/services/
 ├── audio/
-│   ├── audio-source.ts              interface AudioSource: resolve(url) → Track | null (null si el video no existe o no está disponible), stream(track) → Readable
+│   ├── audio-source.ts              interface AudioSource: resolve(url) → Track | null (null si el video no existe o no está disponible), resolvePlaylist(url) → { title, tracks, truncated } | null (null si la playlist no existe o es privada), stream(track) → Readable
 │   ├── yt-dlp/yt-dlp-audio-source.ts    spawnea yt-dlp (y ffmpeg) con child_process
 │   └── audio-errors.ts
 ├── voice/

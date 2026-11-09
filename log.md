@@ -24,3 +24,5 @@
 - (bot) Docs de arquitectura: un use-case puede llamar a otro para reusar su lógica, y `stop`/`leave` del voice player no fallan sin conexión.
 - [playback-controls] (bot) Probado en el servidor: los controles funcionan.
 - [playback-controls] Se cierra la feature.
+- [playlists] Se crea la feature: `/play` acepta links de playlists de YouTube y YouTube Music.
+- (bot) Docs de arquitectura: `/play` acepta links de playlist y `parseYoutubeUrl` distingue video y playlist.
