@@ -32,7 +32,8 @@ El runner es Vitest. Una sola suite: no hay base de datos ni server que levantar
 | `events/interaction-create.ts` | unit: comando desconocido, comando que lanza → respuesta genérica y `logger.error` | junto al archivo |
 | Adapter de un service (`yt-dlp`, `discord`) | con su dependencia mockeada (`child_process`, `@discordjs/voice`): qué recibe y cómo responde a sus errores | junto al archivo |
 | Config | unit: que mapee bien y falle si falta una variable | junto al archivo |
-| Utilidades con lógica propia (`format-duration`) | unit | junto al archivo |
+| `parseYoutubeUrl` | unit: cada formato aceptado, parámetros ignorados y links que no son de YouTube | junto al archivo |
+| Otras utilidades con lógica propia (`format-duration`) | unit | junto al archivo |
 
 No se testean:
 
@@ -57,7 +58,7 @@ Son el equivalente a un e2e: prueban el comando de punta a punta sin Discord.
 - Setup: `createTestAppContext()` (`tests/utils/app-context.ts`) en `beforeEach`, con `QueueRegistry` real, `DummyVoicePlayer` y un `AudioSource` falso; `vi.restoreAllMocks()` en `afterEach`.
 - La `interaction` sale de `createInteraction({ command, options, guildId, voiceChannelId })` (`tests/utils/interaction.ts`), que devuelve un objeto con `reply`, `deferReply` y `editReply` como `vi.fn()` y las opciones que pide el test. Nunca se arma una `interaction` a mano en el test.
 - El estado previo (una cola con tracks, un track sonando) se arma con el `QueueRegistry` del app context antes de ejecutar, usando los tracks de los fixtures.
-- Qué devuelve `AudioSource` se controla con `vi.spyOn(appContext.services.audio, 'search')` y `mockResolvedValue(...)`, o `mockRejectedValue(new <Error>(...))` para el error.
+- Qué devuelve `AudioSource` se controla con `vi.spyOn(appContext.services.audio, 'resolve')` y `mockResolvedValue(...)`, o `mockRejectedValue(new <Error>(...))` para el error.
 - Se verifica:
   1. **La respuesta:** el texto exacto con que se llamó `reply`/`editReply`, y `ephemeral: true` en los errores de negocio.
   2. **El efecto en el estado:** cómo quedó la cola (`current`, `upcoming`, pausa), o que no cambió.
@@ -77,7 +78,7 @@ Son el equivalente a un e2e: prueban el comando de punta a punta sin Discord.
   vi.mock('node:child_process', () => ({ spawn }));
   ```
 
-- Se verifica qué recibe la dependencia (los argumentos de `yt-dlp`, el `joinVoiceChannel` con su `channelId`) y que sus fallos salgan como el error del service (`AudioSearchFailedError`). Nunca se llama al proveedor real.
+- Se verifica qué recibe la dependencia (los argumentos de `yt-dlp`, el `joinVoiceChannel` con su `channelId`) y que sus fallos salgan como el error del service (`AudioResolveFailedError`). Nunca se llama al proveedor real.
 
 ## Fixtures
 

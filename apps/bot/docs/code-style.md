@@ -138,9 +138,9 @@ export class QueueEmptyError extends BusinessError<MusicErrorCode> {
 De infraestructura (services), extiende `AppError` directo:
 
 ```ts
-export class AudioSearchFailedError extends AppError {
-  constructor(query: string, reason: string) {
-    super(`yt-dlp failed searching "${query}": ${reason}`);
+export class AudioResolveFailedError extends AppError {
+  constructor(url: string, reason: string) {
+    super(`yt-dlp failed resolving ${url}: ${reason}`);
   }
 }
 ```
