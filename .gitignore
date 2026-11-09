@@ -10,22 +10,12 @@ node_modules
 .env.test
 .env.production.local
 
-# Migration env files
-.env.migration
-.env.migration.*
-
 # Testing
 coverage
-playwright-report
-test-results
 
 # Build outputs
-.next/
-.astro/
-out/
 build
 dist
-cdk.out
 
 # Debug
 npm-debug.log*
@@ -40,6 +30,3 @@ apps/*/.claude/settings.local.json
 .DS_Store
 *.pem
 tmp
-
-# e2e
-.tmp

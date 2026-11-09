@@ -1,6 +1,6 @@
-# <proyecto>
+# gatobotija
 
-<Una línea: qué es el proyecto y para quién.>
+Bot de música para Discord, ligero, para un servidor de amigos.
 
 Monorepo sin workspaces: cada app en `apps/` tiene su propio `package.json`, `node_modules` y `CLAUDE.md`. Los comandos se corren dentro de la app.
 
@@ -8,16 +8,11 @@ Monorepo sin workspaces: cada app en `apps/` tiene su propio `package.json`, `no
 
 | App | Qué es | Stack |
 |-----|--------|-------|
-| `apps/api` | Backend: API, servicio o microservicio | Express, GraphQL Yoga, Drizzle, Postgres |
-| `apps/admin` | Frontend con sesión: back office o portal de clientes | React, Vite, Tailwind, coss ui, i18next |
+| `apps/bot` | Bot de música para Discord: slash commands y reproducción en canales de voz | Node, TypeScript, discord.js, @discordjs/voice, yt-dlp, ffmpeg |
 
 Una app que el proyecto no usa se borra con su carpeta, sus agentes de `.claude/agents/` y su fila en esta tabla. Una app que todavía no está instalada solo tiene `CLAUDE.md` y `docs/`: al instalarla, se arma siguiendo esos docs.
 
 Antes de escribir código en una app, leer su `CLAUDE.md`.
-
-## e2e
-
-`e2e/` es el entorno aislado de pruebas: levanta las apps sobre una DB desechable y con puertos propios. No es una app: no se despliega y solo levanta y prueba las demás. Antes de tocarlo o de usarlo, leer `e2e/CLAUDE.md`.
 
 ## Features
 
@@ -25,7 +20,7 @@ Antes de escribir código en una app, leer su `CLAUDE.md`.
 
 - `spec/product.md`: contexto, flujo, reglas de negocio, decisiones vigentes y plan de trabajo recomendado. `status` en el frontmatter (`active` | `done`).
 - `spec/technical.md`: modelo, API e impacto en código existente.
-- `spec/ui.md`: capacidades de la UI y dónde vive, sin estilos.
+- `spec/ui.md`: capacidades de la interfaz en Discord (comandos, opciones y respuestas), sin formato concreto.
 - `log.md`: bitácora con una entrada por día y por autor.
 
 Plantillas en `features/_templates/`. Una feature se crea solo cuando el usuario lo pide.

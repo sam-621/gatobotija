@@ -20,7 +20,7 @@ disable-model-invocation: true
 
 ## Scope
 
-- El scope es la app: `api`, `admin`, `e2e`.
+- El scope es la app: `bot`.
 - Sin scope cuando el cambio es **solo** de la raíz del repo (`features/`, `.claude/`, `CLAUDE.md` raíz): `docs: add features folder`.
 
 ## Pasos
@@ -35,8 +35,8 @@ disable-model-invocation: true
 ## Ejemplos
 
 ```
-feat(api): can rename product
-fix(admin): fix build errors
-tests(api): add missing fixtures for product repository tests
+feat(bot): can skip current track
+fix(bot): fix build errors
+tests(bot): add missing fixtures for play command tests
 docs: add features folder
 ```
