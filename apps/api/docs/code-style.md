@@ -1,0 +1,144 @@
+<!--- cSpell:disable --->
+
+# Estilo de código
+
+Aplica a todo código nuevo. Si un archivo existente lo contradice, manda este doc.
+
+## General
+
+- **Sin comentarios.** Ni explicativos, ni JSDoc, ni `TODO`, ni separadores. Solo si el usuario lo pide, y solo el que pidió.
+- **Código y tests en inglés**, incluidos strings y valores de prueba.
+- **Sin `any`**; `unknown` + narrowing.
+- **Sin non-null assertion (`!`)**. Si algo puede ser `null`, se maneja o se usa un helper que lance.
+- **Dinero en centavos** (enteros). Porcentajes como fracción (`0.2`).
+- **Sin parámetros con default solo para que los tests escriban menos.** Si producción siempre pasa el argumento, es requerido.
+- **`export` solo si se importa en otro archivo.** No se exporta "por si después se usa".
+- **En una clase, todo lo que usa va dentro de ella.** Las constantes simples como `private static readonly` (`STATEMENT_TIMEOUT_MS`), lo que se instancia (un mapa de config, el logger) en el constructor, y las funciones auxiliares como métodos privados. Nada suelto en el módulo, salvo los tipos.
+
+## Formato e imports
+
+- ESLint + Prettier mandan: comillas simples, ancho 100, sin trailing commas, 2 espacios. Correr `yarn lint:fix`; no reordenar imports a mano.
+- Grupos de imports (los impone `simple-import-sort`): externos → `@/...` → relativos `../` → relativos `./`.
+- `@/` apunta a `src/` y `@tests/` a `tests/` (utilidades de test: `@tests/utils/database`, `@tests/utils/fixture`). Se usan para cruzar carpetas; relativos solo dentro de la misma carpeta.
+- Un alias nuevo se agrega en `tsconfig.json` (`paths`) y en las tres configs de vitest (`resolve.alias`).
+- `import type` para lo que solo es tipo (regla `consistent-type-imports`).
+- Argumentos sin usar se prefijan con `_` (`_repositories`).
+
+## Naming
+
+| Qué | Regla | Ejemplo |
+|-----|-------|---------|
+| Archivos | `<recurso>-<capa>.ts`, con guion y no con punto, así el único punto extra es el de los tests (`<recurso>-<capa>.test.ts`) | `product-resolver.ts`, `product-errors.ts`, `product-repository.ts` |
+| Clases | `<Recurso><Capa>` | `ProductRepository`, `ProductResolver` |
+| Use-cases | una clase por caso de uso, nombrada por lo que hace con sufijo `-er`/`-or`; archivo en kebab-case en `modules/<modulo>/use-cases/`; carpeta con el mismo nombre solo si tiene test | `modules/product/use-cases/product-creator.ts`, `ProductCreator` |
+| Método del use-case | se llama `execute`, que hereda de `UseCase`; la lógica va en `run` | `new ProductCreator(ctx).execute(args.input)` |
+| Adapters de un service | `<adapter>/<adapter>-<rol>.ts`, clase `<Adapter><Rol>` | `stripe/stripe-billing.ts`, `StripeBilling` |
+| Schemas | `<Acción><Recurso>Schema` | `CreateProductSchema` |
+| Error | describe el caso + `Error` | `ProductNotFoundError` |
+| Conjuntos de valores | objeto `as const` con un tipo del mismo nombre, de preferencia en vez de `enum`; llaves en PascalCase y valores en minúsculas | `OrderByKey.Asc`, con valor `'asc'` |
+
+```ts
+export const OrderByKey = {
+  Asc: 'asc',
+  Desc: 'desc'
+} as const;
+
+export type OrderByKey = (typeof OrderByKey)[keyof typeof OrderByKey];
+```
+
+Se mantienen con punto los sufijos que piden las herramientas (`.test.ts`, `.int.test.ts`, `.e2e.test.ts`, `.gql`, `*.config.ts`) y los fixtures de los tests (`<recurso>.fixtures.ts`, p. ej. `product.fixtures.ts`).
+
+## Carpetas e `index.ts`
+
+- **Carpeta por pieza** cuando la pieza va acompañada de otros archivos, casi siempre su test: `persistence/repositories/product/` con `product-repository.ts` y su test en `__tests__/`.
+- **Barrel `index.ts` solo cuando la carpeta lleva el nombre de su archivo principal.** El `index.ts` hace `export * from './<archivo>'` y se importa por la carpeta, para no repetir el nombre en la ruta:
+
+  | Carpeta | Archivo principal | Import |
+  |---------|-------------------|--------|
+  | `config/` | `config.ts` | `@/config` |
+  | `context/` | `app-context.ts` y `request-context.ts` | `@/context` |
+  | `services/logger/` | `logger.ts` | `@/services/logger` |
+  | `persistence/repositories/product/` | `product-repository.ts` | `@/persistence/repositories/product` |
+
+- Una carpeta que agrupa varias piezas del mismo nivel (`use-cases/`, `api/resolvers/`, `errors/`) no lleva barrel: se importa el archivo (`@/modules/product/use-cases/product-creator`). Su `index.ts`, si existe, no reexporta: arma algo (el array de `resolvers`).
+
+## Use-case
+
+```ts
+const RenameProductSchema = z.object({
+  productId: z.uuid(),
+  name: z.string().trim().min(1).max(120)
+});
+
+export class ProductRenamer extends UseCase<typeof RenameProductSchema> {
+  constructor(private readonly ctx: UowContext) {
+    super(RenameProductSchema);
+  }
+
+  async run(
+    input: z.output<typeof RenameProductSchema>
+  ): Promise<Product | ProductNotFoundError | ProductNameAlreadyTakenError> {
+    const product = await this.ctx.repositories.product.findOne({
+      where: { id: input.productId }
+    });
+
+    if (!product) return new ProductNotFoundError(input.productId);
+    if (await this.ctx.repositories.product.existsByName(input.name)) {
+      return new ProductNameAlreadyTakenError(input.name);
+    }
+
+    const [renamed] = await this.ctx.repositories.product.update(
+      { id: product.id },
+      { name: input.name }
+    );
+
+    return renamed;
+  }
+}
+```
+
+## Resolver
+
+```ts
+export const ProductResolver: Resolvers = {
+  Mutation: {
+    renameProduct: async (_parent, args, ctx) => {
+      const uow = new UnitOfWork(ctx.database);
+
+      const result = await uow.execute(async (_repositories, uowCtx) => {
+        const productRenamer = new ProductRenamer(uowCtx);
+
+        return productRenamer.execute(args.input);
+      });
+
+      return apiResponse(result, 'product');
+    }
+  }
+};
+```
+
+Si pasa por un middleware, el resolver va como función con nombre y se envuelve al mapearlo (ver `architecture.md` > Resolvers).
+
+## Errores
+
+De negocio (lo devuelve un use-case y llega al cliente en `apiErrors`), con su `code` tipado con el enum `<Recurso>ErrorCode` de `@/api/codegen` y pasado como primer argumento:
+
+```ts
+import type { ProductErrorCode } from '@/api/codegen';
+
+export class ProductNotFoundError extends BusinessError<ProductErrorCode> {
+  constructor(id: string) {
+    super('PRODUCT_NOT_FOUND', `Product not found with id ${id}`);
+  }
+}
+```
+
+De infraestructura (sesión, services), extiende `AppError` directo:
+
+```ts
+export class StorageUploadFailedError extends AppError {
+  constructor(reason: string) {
+    super(reason);
+  }
+}
+```

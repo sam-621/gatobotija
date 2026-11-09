@@ -1,0 +1,1 @@
+# <proyecto> — log del proyecto
