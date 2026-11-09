@@ -1,5 +1,5 @@
 ---
-status: active
+status: done
 apps: [bot]
 created: 2026-11-09
 ---
@@ -57,4 +57,4 @@ Como miembro del servidor, quiero pegar un link de YouTube con `/play`, para esc
 4. [x] bot: service `voice` (`VoicePlayer`, `DiscordVoicePlayer`, `DummyVoicePlayer`) con su test.
 5. [x] bot: `TrackEnqueuer`, avance automático al terminar un track y salida por inactividad.
 6. [x] bot: `/play` con su test.
-7. [ ] bot: prueba manual en el servidor (la corre el usuario).
+7. [x] bot: prueba manual en el servidor (la corre el usuario).

@@ -17,3 +17,6 @@
 - [bot-setup] (bot) Probado en el servidor: el bot se conecta y `/ping` responde.
 - (bot) Los errores después de un `deferReply` salen efímeros; docs de arquitectura, estilo y testing al día con el esqueleto del bot.
 - [play] (bot) `/play` reproduce links de YouTube con cola por servidor, avance automático y salida tras 5 minutos de inactividad; falta la prueba manual.
+- (bot) Decisión: el deploy en Railway va con un `Dockerfile` propio que instala `ffmpeg` y el último `yt-dlp`; todavía no está armado.
+- [play] (bot) Probado en el servidor: `/play` reproduce.
+- [play] Se cierra la feature.

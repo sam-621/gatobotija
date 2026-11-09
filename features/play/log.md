@@ -10,3 +10,5 @@
 - (bot) `TrackEnqueuer` va en su carpeta con su propio test unitario.
 - Spec al día con lo construido: si la cola está vacía el bot se muda al canal del usuario; si lo sacan del canal, la cola se borra.
 - (bot) Docs de arquitectura, estilo y testing al día con lo construido: app context y client, callbacks de `VoicePlayer`, timer en `GuildQueue`, errores de negocio con texto fijo y test unitario para cada use-case.
+- (bot) Paso 7: probado en el servidor, `/play` reproduce audio (sin librería de opus, como dice `architecture.md`).
+- Probado todo en el servidor: avance automático, salida a los 5 min, kick y movida de canal. Se cierra la feature.
