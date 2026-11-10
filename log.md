@@ -31,3 +31,5 @@
 - [playlists] Se cierra la feature.
 - (bot) `Dockerfile` para el deploy en Railway: Node 24, ffmpeg y el yt-dlp más reciente en cada build, con Node como runtime de JS de yt-dlp.
 - (bot) Docs de arquitectura: el deploy ya está armado; yt-dlp usa Node como runtime de JS y el contenedor recibe las variables de Railway.
+- (bot) La imagen acepta cookies de YouTube en base64 por `YT_DLP_COOKIES` para que yt-dlp pase el bloqueo de "confirm you’re not a bot" en Railway.
+- (bot) Docs: `YT_DLP_COOKIES` documentada como variable opcional solo del deploy.

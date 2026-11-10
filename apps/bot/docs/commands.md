@@ -30,7 +30,7 @@ Requisitos del sistema: `ffmpeg` y `yt-dlp` en el `PATH`. `yt-dlp` se actualiza 
 
 ## Variables de entorno
 
-Todas son obligatorias y ninguna tiene default (ver `architecture.md` > Config). Se documenta aquí cada una que se agregue, con su `.env.example`.
+Las de la app son obligatorias y ninguna tiene default (ver `architecture.md` > Config). Se documenta aquí cada una que se agregue, con su `.env.example`.
 
 | Variable | Para qué |
 |----------|----------|
@@ -38,3 +38,11 @@ Todas son obligatorias y ninguna tiene default (ver `architecture.md` > Config).
 | `DISCORD_TOKEN` | Token del bot. |
 | `DISCORD_CLIENT_ID` | Application ID, para registrar los comandos. |
 | `DISCORD_GUILD_ID` | Servidor donde se registran los comandos (aparecen al instante, a diferencia de los globales). |
+
+### Solo del deploy
+
+No pasan por `loadConfig()`: las lee `docker-entrypoint.sh` y son opcionales. No van en `.env.example`.
+
+| Variable | Para qué |
+|----------|----------|
+| `YT_DLP_COOKIES` | Cookies de YouTube (formato Netscape) en base64, para que yt-dlp no choque con el "Sign in to confirm you're not a bot" desde Railway. Exportarlas de una cuenta desechable en incógnito (ver la wiki de yt-dlp) y codificarlas con `base64 -i cookies.txt`. Caducan: si vuelve el error, se exportan de nuevo. |

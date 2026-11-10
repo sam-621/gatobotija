@@ -38,5 +38,7 @@ WORKDIR /app
 COPY --from=prod-deps /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY package.json ./
+COPY --chmod=755 docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 USER node
+ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["node", "--enable-source-maps", "dist/index.js"]
