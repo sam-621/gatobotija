@@ -29,3 +29,5 @@
 - [playlists] (bot) `/play` encola playlists de YouTube y YouTube Music (máximo 100 canciones, sin mixes); falta la prueba manual.
 - [playlists] (bot) Probado en el servidor: `/play` encola playlists.
 - [playlists] Se cierra la feature.
+- (bot) `Dockerfile` para el deploy en Railway: Node 24, ffmpeg y el yt-dlp más reciente en cada build, con Node como runtime de JS de yt-dlp.
+- (bot) Docs de arquitectura: el deploy ya está armado; yt-dlp usa Node como runtime de JS y el contenedor recibe las variables de Railway.

@@ -15,7 +15,7 @@ Bot ligero para un solo servidor de amigos. Solo reproduce links de YouTube: sin
 | Validación | `zod` (config y opciones de los comandos) |
 | Logger | `winston` |
 | Tests | Vitest |
-| Deploy | Railway con un `Dockerfile` propio: imagen de Node, `ffmpeg` por `apt-get` y el binario oficial de `yt-dlp` bajado de su release de GitHub en cada build, así cada deploy trae el más reciente. Nada de paquetes npm que empaqueten los binarios ni paquetes del builder de Railway (traen un yt-dlp viejo). Todavía no está armado |
+| Deploy | Railway con un `Dockerfile` propio: imagen de Node, `ffmpeg` por `apt-get` y el binario oficial de `yt-dlp` bajado de su release de GitHub en cada build, así cada deploy trae el más reciente. Nada de paquetes npm que empaqueten los binarios ni paquetes del builder de Railway (traen un yt-dlp viejo). yt-dlp usa Node como runtime de JS (`/etc/yt-dlp.conf`), sin deno. El contenedor corre `node dist/index.js` sin `--env-file`: las variables las inyecta Railway |
 
 Nada de Lavalink, base de datos ni dashboard: si algún día hace falta, es una decisión nueva y va primero a este doc.
 
